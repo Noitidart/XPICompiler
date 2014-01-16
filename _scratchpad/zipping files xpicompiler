@@ -1,0 +1,66 @@
+//ff-addon idea, right click a tab and click go to tab that opened it, then i can go back and forward in that tab
+var {Cc: classes, Ci: interfaces, Cu: utils} = Components;
+var zipWriter = Components.Constructor('@mozilla.org/zipwriter;1', 'nsIZipWriter');
+var zw = new zipWriter();
+
+var pr = {PR_RDONLY: 0x01, PR_WRONLY: 0x02, PR_RDWR: 0x04, PR_CREATE_FILE: 0x08, PR_APPEND: 0x10, PR_TRUNCATE: 0x20, PR_SYNC: 0x40, PR_EXCL: 0x80}; //https://developer.mozilla.org/en-US/docs/PR_Open#Parameters
+var fu = Cu.import('resource://gre/modules/FileUtils.jsm').FileUtils;
+
+var nsIFilePicker = Ci.nsIFilePicker;
+var fp = Cc['@mozilla.org/filepicker;1'].createInstance(nsIFilePicker);
+fp.init(window, 'Select Directory to Compile', nsIFilePicker.modeGetFolder);
+fp.appendFilters(nsIFilePicker.filterAll | nsIFilePicker.filterText);
+
+var rv = fp.show();
+if (rv == nsIFilePicker.returnOK) {
+    var dir = fp.file;
+    //dir must exist, as the user selected it. but note that if dir doesnt exist zw.open throws problems
+    var path = fp.file.path; //returns C:\Users\3K2KYC1\Documents\prefs\prefs
+    
+    var xpi = fu.File(path + '\\' + dir.leafName + '.xpi');
+    /*
+    //dont need this block anymore because i use the constants in zw.open
+    //if (xpi.exists()) {
+    //    xpi.remove(false);//delete it
+    //}
+    //xpi.create(Ci.nsIFile.NORMAL_FILE_TYPE, fu.PERMS_FILE); //create it
+    */
+
+    //var entry = zw.getEntry(dir.path);
+    //alert(entry);
+    
+    zw.open(xpi, pr.PR_RDWR | pr.PR_CREATE_FILE | pr.PR_TRUNCATE); //PR_TRUNCATE overwrites if file exists //PR_CREATE_FILE creates file if it dne //PR_RDWR opens for reading and writing
+    
+    //zw.addEntryDirectory(dir.path, new Date().getTime() * 1000, false); //time ins MICROseconds NOT milliseconds //learned: this does not actually add a directory from my hd to the zip file, it creates a directory/folder inside the zip file, to add directory from hd to zip use the addEntryFile but with directory as the nsiFile
+    zw.addEntryFile('', Ci.nsIZipWriter.COMPRESSION_NONE, dir, false);
+    zw.close()
+    
+    
+}
+
+
+function cDump(obj) {
+    var tstr = '';
+    var bstr = '';
+    var fstr = '';
+    for (var b in obj) {
+        try{
+            bstr += b+'='+obj[b]+'\n';
+        } catch (e) {
+                fstr = b+'='+e+'\n';
+        }
+    }
+    tstr += '<b>BSTR::</b>\n' + bstr;
+    tstr += '\n<b>FSTR::</b>\n' + fstr;
+      
+    var cWin = Services.wm.getMostRecentWindow('navigator:browser');
+   
+    var onloadFunc = function() {
+        cWin.gBrowser.selectedTab = cWin.gBrowser.tabContainer.childNodes[cWin.gBrowser.tabContainer.childNodes.length-1];
+        newTabBrowser.removeEventListener('load', onloadFunc, true);
+        newTabBrowser.contentDocument.body.innerHTML = tstr.replace(/\n/g,'<br>')
+    };
+   
+    var newTabBrowser = cWin.gBrowser.getBrowserForTab(cWin.gBrowser.addTab('about:blank'));
+    newTabBrowser.addEventListener('load', onloadFunc, true);
+}
