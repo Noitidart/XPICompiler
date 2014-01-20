@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>XPICompiler</title>
+	</head>
+	<style>
+		body {
+			display: flex;
+			margin: 0px;
+			position: fixed;
+			width: 100%;
+			height: 100%;
+		}
+		.main-pane {
+			border-right: 1px solid rgb(198, 201, 206);
+			background: linear-gradient(to right, rgba(238,238,238,1) 99%,rgba(204,204,204,.5) 100%);
+			flex: 1;
+			height: 100%;
+		}
+	</style>
+<body>
+	<div class="main-pane">
+		<span>Logo</span>
+		<span>Browse</span>
+		<div id="options">
+			options here, like silent install?
+		</div>
+		<div id="status">
+			status pane here, reports errors during xpi creation, zipping etc etc
+		</div>
+	</div>
+	<div class="main-pane">
+		History (list of recent xpi files compiled, clicking on it will recompile that folder)
+	</div>
+	<div class="main-pane">
+		Recent Folders (list of folders from which a subfolder was selected for xpi compilation)
+	</div>
+</body>
+</html>
