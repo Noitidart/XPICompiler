@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>XPICompiler</title>
+	</head>
+	<style>
+		body {
+			display: flex;
+			margin: 0px;
+			position: fixed;
+			width: 100%;
+			height: 100%;
+			font-family: Verdana;
+			font-size: 14px;
+		}
+		.main-pane {
+			border-right: 1px solid rgb(198, 201, 206);
+			background: linear-gradient(to right, #EFEFEF 99%,rgba(204,204,204,.5) 100%);
+			flex: 1;
+			height: 100%;
+			display: flex;
+			flex-direction: column;
+			padding:5px;
+			/*box-shadow: -2px 0px 5px 0px rgb(204, 204, 204) inset;*/
+		}
+		.main-pane:nth-of-type(2) {
+			background: none repeat scroll 0% 0% transparent;
+			box-shadow: 2px 0px 5px 0px rgba(198, 201, 206, 0.3);
+		}
+		.main-pane:nth-of-type(3) {
+			background: none repeat scroll 0% 0% transparent;
+			box-shadow: none;
+		}
+		#logo {
+			/*
+			font-size: 1.7em;
+			*/
+			font-weight: bold;
+			text-shadow: 1px 1px 0px #CCC;
+			color: #666;
+		}
+		#folders {
+			/*border: 1px solid #666;*/
+		}
+		
+		/*start recent folder stuff*/
+		.folder {
+			background: transparent url('folder16.png') no-repeat 3px center; 
+			padding: 5px 5px 5px 24px;
+			border-radius: 5px;
+			margin: 5px 0;
+			cursor: pointer;
+		}
+		.folder span[xfield=name] {
+			display:block !important;
+			font-weight: bold;
+		}
+		.folder span[xfield] {
+			display:none;
+		}
+		/*on hover of folder*/
+		.folder:hover {
+			background: #DFDFDF url('folder32.png') no-repeat 5px center; 
+			padding-left: 44px;
+		}
+		.folder:hover span[xfield] {
+			display: block;
+		}
+		/*end recent folder stuff*/
+		
+		/*start recent xpi stuff*/
+		.xpi {
+			background: transparent url('xpi16.png') no-repeat 3px center; 
+			padding: 5px 5px 5px 24px;
+			border-radius: 5px;
+			margin: 5px 0;
+			cursor: pointer;
+		}
+		.xpi span[xfield=name] {
+			display:block !important;
+			font-weight: bold;
+		}
+		.xpi span[xfield] {
+			display:none;
+		}
+		/*on hover of xpi*/
+		.xpi:hover {
+			background: #EFEFEF url('xpi32.png') no-repeat 5px center; 
+			padding-left: 44px;
+		}
+		.xpi:hover span[xfield] {
+			display: block;
+		}
+		/*end recent xpi stuff*/
+		
+		
+		/*options form*/
+		#options {
+			display: flex;
+			flex-direction: column;
+		}
+		#options span {
+			display: flex;
+			flex-direction: row;
+			margin: 2px 0;
+		}
+		#options span *:first-child {
+			flex: 1;
+		}
+		#options span select:last-child {
+			width: 11em;
+		}
+		/*end options form*/
+		
+		/*browse div*/
+		#browse {
+			display: flex;
+			flex-direction: row;
+		}
+		
+		#browse input {
+			flex: 1;
+		}
+		
+		#browse .button {
+			background-color: #CAE00D;
+			padding:6px 10px;
+			border-radius: 5px;
+			color: #000;
+			font-weight: bold;
+			cursor: pointer;
+			margin-left: 5px;
+			font-size: 1.1em;
+		}
+		/*end browse div*/
+		
+		/*status*/
+		#status {
+			background-color: steelblue;
+			height: 90%;
+			position: relative;
+			oveflow: auto;
+		}
+		#status > span {
+			transition: top .5s;
+			position: relative;
+			top: 0;
+			display: block;
+		}
+		/*end status*/
+	</style>
+	<script src="date.extensions.js"></script>
+	<script>
+		var useTop = 0;
+		function addMsg(msg) {
+			//adds new line to status pane
+			var status = document.querySelector('#status');
+			var el = document.createElement('span');
+			el.innerHTML = msg;
+			if (!useTop) {
+				var rect = status.getBoundingClientRect();
+				var useTop = rect.height;
+			}
+			el.setAttribute('style','top:' + useTop + 'px');
+			
+			status.appendChild(el);
+			setTimeout(function(){el.removeAttribute('style');},20);
+
+		}
+	</script>
+<body>
+	<div class="main-pane">
+		<h1 id="logo">
+			XPICOMPILER
+		</h1>
+		<h2>OPTIONS</h2>
+		<form id="options">
+			<span>
+				<span>Install</span>
+				<select name="install">
+					<option value="0">None</option>
+					<option value="1">Normal</option>
+					<option value="2" selected>Silent</option>
+				</select>
+			</span>
+			<span>
+				<span>XPI Filename</span>
+				<select name="filename">
+					<option value="0">Custom</option>
+					<option value="1" selected>Directory Name</option>
+				</select>
+			</span>
+			<span>
+				<span>XPI Compression</span>
+				<select name="location">
+					<option value="0" selected>None</option>
+					<option value="1">Fast</option>
+					<option value="2">Normal</option>
+					<option value="3">Best</option>
+				</select>
+			</span>
+			<span>
+				<span>XPI Location</span>
+				<select name="location">
+					<option value="0">Browse</option>
+					<option value="1" selected>Compiled Directory</option>
+				</select>
+			</span>
+			<span>
+				<span devnote="(show if install value is not 0)">Delete XPI After Install</span>
+				<select name="overwrite">
+					<option value="0">No</option>
+					<option value="1" selected>Yes</option>
+				</select>
+			</span>
+			<span>
+				<span>Overwrite</span>
+				<select name="overwrite">
+					<option value="0">No</option>
+					<option value="1" selected>Yes</option>
+				</select>
+			</span>
+			<span>
+				<span devnote="(if not overwrite)">Filename Append</span>
+				<select name="filename_append">
+					<option value="0">Date and Time</option>
+					<option value="1">Number</option>
+				</select>
+			</span>
+		</form>
+		<h2>BROWSE</h2>
+		<div id="browse">
+			<input type="text">
+			<span class="button">
+				Browse
+			</span>
+		</div>
+		<h3>Recent Folders</h3>
+		<div id="folders">
+			<div class="folder">
+				<span xfield="name">XPICompiler</span>
+				<span xfield="date">3 days ago</span>
+				<span xfield="path">../../.../XPICompiler</span>
+			</div>
+		</div>
+	</div>
+	<div class="main-pane">
+		<h2>HISTORY</h2>
+		<div id="xpis">
+			<div class="xpi">
+				<span xfield="name">XPICompiler</span>
+				<span xfield="date">3 days ago</span>
+				<span xfield="compress">No Compression</span>
+				<span xfield="folder">../../.../XPICompiler</span>
+				<span xfield="path">../../.../XPICompiler</span>
+			</div>
+		</div>
+	</div>
+	<div class="main-pane">
+		<h2 onclick="addMsg(new Date().toLocaleString())">STATUS</h2>
+		<div id="status"></div>
+	</div>
+</body>
+</html>
