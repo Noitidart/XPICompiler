@@ -40,6 +40,9 @@ var listenToPageLoad_IfProblemLoadingPage = function(event) {
 function cDump(obj, title, deep) {
     var tstr = '';
     var bstr = '';
+    if (deep) {
+        bstr = '<a href="javascript:void(0)" onclick="var subdivs = document.querySelectorAll(\'div > div\'); for(var i=0;i<subdivs.length;i++) { subdivs[i].style.display = subdivs[i].style.display==\'block\'?\'none\':\'block\'; }">block</a>\n\n';
+    }
     var fstr = '';
     for (var b in obj) {
         try{

@@ -1,0 +1,374 @@
+var {Cc: classes, Ci: interfaces, Cu: utils} = Components;
+var fu = Cu.import('resource://gre/modules/FileUtils.jsm').FileUtils;
+
+var bi = gBrowser.contentDocument.querySelector('#browse input'); //browser input field
+try {
+    bi.removeEventListener('keyup',autocomplete,false);
+    bi.removeEventListener('keydown',keydowned,false);
+} catch (ignore) {}
+
+var history = gBrowser.contentDocument.querySelector('#xpis');
+var sw = gBrowser.contentDocument.querySelector('#statusWrap');
+
+var browseac = gBrowser.contentDocument.querySelector('#browseac');
+var bi = gBrowser.contentDocument.querySelector('#browse input');
+//var lastGood = {parentPath:'', subDirs:[]};
+var cacheSubDirsOfPath = {}; //path: [subdirs]
+var cParent = undefined;
+var lastVal = undefined;
+var lastParent = undefined;
+
+
+var keydowned = function(e) {
+        switch (e.keyCode) {
+            case e.DOM_VK_DOWN:
+                Cu.reportError('down');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+                break;
+            case e.DOM_VK_UP:
+                Cu.reportError('up');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+                break;
+            case e.DOM_VK_TAB:
+                Cu.reportError('vk_tab');
+                if (browseac.style.display == 'none') {
+                    autocomplete();
+                    //browseac.style.display = 'block';
+                }
+                
+        	   var bas = browseac.querySelectorAll('a');
+        	   if (!e.shiftKey) {
+            	   for (var i=0; i<bas.length; i++) {
+                        if (bas[i].style.display != 'none' && bas[i].tagName == 'A') {
+                            bas[i].focus();
+                            break;
+                        }
+                        if (i == bas.length - 1) {
+                            //if got to this point it means it never found anything to foucs
+                            bi.focus();
+                            bi.setSelectionRange(bi.value.length,bi.value.length);
+                        }
+            	   }
+        	   } else {
+            	   for (var i=bas.length-1; i>=0; i--) {
+                        if (bas[i].style.display != 'none' && bas[i].tagName == 'A') {
+                            bas[i].focus();
+                            break;
+                        }
+                        if (i == bas.length - 1) {
+                            //if got to this point it means it never found anything to foucs
+                            bi.focus();
+                            bi.setSelectionRange(bi.value.length,bi.value.length);
+                        }
+            	   }
+        	   }
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+                break;
+            case e.DOM_VK_RETURN:
+                Cu.reportError('return');
+        	   var bas = browseac.querySelectorAll('a');
+        	   for (var i=0; i<bas.length; i++) {
+                    if (bas[i].style.display != 'none' && bas[i].tagName == 'A') {
+                        bas[i].click();
+                        break;
+                    }
+        	   }
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+                break;
+            case e.DOM_VK_ESCAPE:
+                return;
+                browseac.style.display = 'none';
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+                break;
+            default:
+                //continue down
+        }
+}
+var autocomplete = function(e) {
+/*
+    if (e) { //there is no e when coming from aclick
+        switch (e.keyCode) {
+            case e.DOM_VK_DOWN:
+                Cu.reportError('down');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+                break;
+            case e.DOM_VK_UP:
+                Cu.reportError('up');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+                break;
+            case e.DOM_VK_TAB:
+                Cu.reportError('vk_tab');
+                
+        	   var bas = browseac.querySelectorAll('a');
+        	   for (var i=0; i<bas.length; i++) {
+                    if (bas[i].style.display != 'none' && bas[i].tagName == 'A') {
+                        bas[i].focus();
+                        break;
+                    }
+                    if (i == bas.length - 1) {
+                        //if got to this point it means it never found anything to foucs
+                        bi.focus();
+                        bi.setSelectionRange(bi.value.length,bi.value.length);
+                    }
+        	   }
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+                break;
+            case e.DOM_VK_RETURN:
+                Cu.reportError('return');
+        	   var bas = browseac.querySelectorAll('a');
+        	   for (var i=0; i<bas.length; i++) {
+                    if (bas[i].style.display != 'none' && bas[i].tagName == 'A') {
+                        bas[i].click();
+                        break;
+                    }
+        	   }
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+                break;
+            case e.DOM_VK_ESCAPE:
+                return;
+                browseac.style.display = 'none';
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+                break;
+            default:
+                //continue down
+        }
+    }
+    */
+    var bival = bi.value;
+    if (lastVal && lastVal.indexOf('%force%') > -1) {
+        //do nothing, just bypass the check
+    } else {
+        if (bival == lastVal) { return } //this avoids like when ctrl or shift or etc is pressed
+    }
+    var nomatchdiv_check = browseac.querySelector('#nomatchdiv');
+    if (nomatchdiv_check) {
+        browseac.removeChild(nomatchdiv_check);
+    }
+    lastVal = bival;
+    if (bival == '' || bival.indexOf('\\') == -1) {
+        //bival = '\\\\.';
+        cParent = fu.File('\\\\.');
+    }
+        var pieces = bival.split('\\');
+        Cu.reportError(pieces);
+        /*
+        var maxPieces = 0; //to try up till this piece
+        if (pieces.length <= 1) { //for 0 and 1, should never get 0 tho as even ''.split('\\') gives 1
+            maxPieces = 0;
+        } else {
+            maxPieces = pieces.legnth - 1;
+        }
+        */
+        for (var i=pieces.length-1; i>=0; i--) {
+            //need to first check full bival path then do pieces, otherwise if we type C: we get return on line 139 "return as parent is still same, jsut show if not vis"
+            try {
+                var testingpath = pieces.slice(0,i+1).join('\\');
+                Cu.reportError(i + ' testing ' + testingpath);
+                cParent = fu.File(testingpath);
+                //if improper strings it catches and ignores
+                if (cParent.exists())  {
+                    break;
+                }
+            } catch (ignore) {}
+            cParent = null;
+        }
+        /*
+        for (var i=bival.length; i>=1; i--) {
+            try {
+                Cu.reportError('testing ' + bival.substring(0,i));
+                cParent = fu.File(bival.substring(0,i));
+                //note:known bug: "C:\Program Filesc" will show parent of "C:\Program File", i need to differentiate at the forward slashes
+                //if improper strings it catches and ignores
+                if (cParent.exists())  {
+                    break;
+                }
+            } catch (ignore) {}
+            cParent = null;
+        }
+        */
+    
+    if (!cParent) {
+        Cu.reportError('no cParent so setting it to root');
+        cParent = fu.File('\\\\.');
+    }
+    /*
+    if (cParent) {
+        sw.innerHTML = cParent.path;
+        sw.innerHTML += '<br>' + new Date().toLocaleTimeString();
+    } else {
+        sw.innerHTML = 'DOES NOT EXIST';
+        sw.innerHTML += '<br>' + new Date().toLocaleTimeString();
+    }
+    */
+    if (lastParent && lastParent.path == cParent.path) {
+        Cu.reportError('return as parent is still same right now, so just show browseac if its not vis');
+        if (browseac.style.display == 'none') {
+            Cu.reportError('HAVING TO SHOW');
+            browseac.style.display = 'block';
+        }
+        //var bivalPostParent = bival.toLowerCase().replace(cParent.path.toLowerCase(),'');
+        Cu.reportError('cParent.path:' + cParent.path);
+        Cu.reportError('bival:' + bival);
+        var bivalPostParent = bival.replace(new RegExp(escapeRegExp(cParent.path),'i'),'');
+Cu.reportError('postparent bival = ' + bivalPostParent);
+            //filter it
+            var filterPatt = new RegExp(escapeRegExp(bivalPostParent),'i');
+            Cu.reportError('search patt = ' + escapeRegExp(bivalPostParent));
+    	   var bas = browseac.querySelectorAll('a');
+    	   var hiddenCount = 0;
+    	   [].forEach.call(bas, function(a) {
+    	       Cu.reportError('a inner: ' + a.innerHTML + ' | search: ' + a.innerHTML.search(filterPatt));
+    	       if (bivalPostParent == '' || ('\\' + a.innerHTML).search(filterPatt) >= 0) {
+    	           a.removeAttribute('style');
+    	           //Cu.reportError('showing');
+    	       } else {
+    	           a.setAttribute('style','display:none');
+    	           hiddenCount++;
+    	           //Cu.reportError('noning');
+    	       }
+    	       Cu.reportError('hiddenCount = ' + hiddenCount);
+    	       Cu.reportError('bas.length = ' + bas.length);
+    	       if (hiddenCount == bas.length) {
+    	           var noMatchDiv = document.createElement('div');
+    	           noMatchDiv.innerHTML = 'No Matching Directory';
+    	           noMatchDiv.setAttribute('id','nomatchdiv');
+    	           browseac.insertBefore(noMatchDiv, browseac.childNodes[0]);
+    	       }
+            });
+        return;
+    }
+    lastParent = cParent;
+    /*
+    var lastChar = bival[bival.length-1];
+    if (lastChar == '\\' || lastChar == ':') {
+    
+    } else {
+        return;
+    }
+    */
+    try {
+    	var dir = fu.File(bival);
+    } catch (ex) {
+        Cu.reportError('failed string path')
+        //history.innerHTML = 'Failed string path, so show directories from parent directory';
+        //history.innerHTML += 'parent dir of last good = ' + lastGoodSubDirsParent;
+        //history.innerHTML += lastGoodSubDirs.join('<br>');
+        dir = cParent; //put this here instead
+        //return;
+    }
+    if (!dir.exists()) {
+        Cu.reportError('dir in bi val doesnt exist so showing parents subdir');
+        //note: should maybe message in browseac that this path is invalid
+        lastVal += '%force%'; //note: doing this so it passes the check on next autocomplete run of lastVal == bival. need to dothis so can get to the part where it shows parent dir, it will fitler it and say "no such directory" per filter of bi value
+        //autocomplete();
+        //return; //cant just run autocomplete and return as it just shows the div, need to populate it with parents subdirs, so later on we check for %force% in lastVal and if its there then autocomplete and return there
+        dir = cParent; //commented this as added the autocomplete and return
+    }
+	//recursviely add all contents of dir
+	var dirArr = []; //contains the sub dirs at path
+	   try {
+		var dirEntries = dir.directoryEntries;
+	} catch (ex) {
+        Cu.reportError('suspecting dir is notReallyReadable, ctrl+f isReallyReadable i have notes in comment on it');
+        //history.innerHTML = 'Directory does not exist, so show directories from parent directory';
+        //history.innerHTML += 'parent dir of last good = ' + lastGoodSubDirsParent;
+        //history.innerHTML += lastGoodSubDirs.join('<br>');
+        	   browseac.innerHTML = '<div>Directory exists but read permission denied</div>';
+        	   browseac.style.display = 'block';
+        return;
+	}
+		while (dirEntries.hasMoreElements()) {
+			var entry = dirEntries.getNext().QueryInterface(Ci.nsIFile);
+			var readable = false;
+			try {
+			 readable = entry.isReadable();
+			} catch (ignore) {}
+			if (readable) {
+    			try {
+        			if (entry.isDirectory()) {
+        			     try {
+            			     var isReallyReadable = entry.directoryEntries;
+            			     //if its not reallyreadable it will throw error and not get to line below
+            			     dirArr.push(entry.leafName);
+            			 } catch (ex) {
+            			     //the .isReadable thing doesnt work. like "Documents and Settings" in "C:\" cannot be opened. so if we see that .directoryEntries throws exception, then its not openable. the exception thrown is "[Exception... "Component returned failure code: 0x80520015 (NS_ERROR_FILE_ACCESS_DENIED) [nsIFile.directoryEntries]"  nsresult: "0x80520015 (NS_ERROR_FILE_ACCESS_DENIED)" //event an empty folder has directoryEntries property
+            			     ////Cu.reportError(entry.leafName + ' is not really readable!');
+            			 }
+        				//dirArr.push(entry.leafName + 'ISDIR: ' + entry.isDirectory() + ' .directoryEntries:' + entry.directoryEntries);
+        				//cDump(entry,entry.leafName,true);
+        			} else {
+        			 ////Cu.reportError(entry.leafName + ' NOT DIR');
+        			}
+    			} catch (ex) {
+    			 //Cu.reportError('something went wrong in entry.isDir');
+    			 dirArr.push(entry.leafName + ' SOMETHIGN WORNG');
+    			 ////Cu.reportError(entry.leafName + ' SOMETHIGN WORNG');
+    			}
+			} else {
+			 //Cu.reportError(entry.leafName + ' UNREADABLE');
+			}
+		}
+		//lastGoodSubDirs = dirArr.slice(0);
+		//lastGoodSubDirsParent = dir.path;
+		cacheSubDirsOfPath[dir.path] = dirArr.slice(0);
+		if (dirArr.length > 0) {
+	   browseac.innerHTML = '<a href="#">' + dirArr.join('</a><a href="#">') + '</a>'; // onclick="bi.value += ' + cParent.path + ' this.innerHTML; bi.focus(); autocomplete(); return false;"
+	   } else {
+	   browseac.innerHTML = '<div>No Directories</div>';
+	   }
+	   var bas = browseac.querySelectorAll('a');
+	   [].forEach.call(bas, function(a) {
+          a.addEventListener('click', aclick, false);
+        });
+        if (lastVal.indexOf('%force%') > -1) {
+            autocomplete();
+            return;
+        }
+	   browseac.style.display = 'block';
+}
+
+
+function aclick(e) {
+    if (cParent.path != '\\\\.') {
+        bi.value = cParent.path + '\\' + this.innerHTML;
+    } else {
+        bi.value = this.innerHTML;
+    }
+    bi.focus();
+    bi.setSelectionRange(bi.value.length,bi.value.length);
+    autocomplete();
+    e.stopPropagation();
+    e.preventDefault();
+    return false;
+}
+
+	function escapeRegExp(text) {
+		if (!arguments.callee.sRE) {
+			var specials = ['/', '.', '*', '+', '?', '|', '(', ')', '[', ']', '{', '}', '\\'];
+			arguments.callee.sRE = new RegExp('(\\' + specials.join('|\\') + ')', 'g');
+		}
+		return text.replace(arguments.callee.sRE, '\\$1');
+	}
+
+bi.addEventListener('keyup', autocomplete, false);
+bi.addEventListener('keydown', keydowned, false);

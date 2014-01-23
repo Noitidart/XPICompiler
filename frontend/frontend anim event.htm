@@ -24,6 +24,9 @@
 			/*box-shadow: -2px 0px 5px 0px rgb(204, 204, 204) inset;*/
 			overflow: hidden;
 		}
+		.main-pane > * {
+			
+		}
 		.main-pane:nth-of-type(2) {
 			background: none repeat scroll 0% 0% transparent;
 			box-shadow: 2px 0px 5px 0px rgba(198, 201, 206, 0.3);
@@ -77,7 +80,6 @@
 			border-radius: 5px;
 			margin: 5px 0;
 			cursor: pointer;
-			/*flex-shrink: 0;*/ /*i dont know if needed, but during diff of files i found it was in .folder so i added it here too but kept it commented out*/
 		}
 		.xpi span[xfield=name] {
 			display:block !important;
@@ -139,7 +141,7 @@
 		}
 		
 		#browse .compile {
-			background: transparent url('compile.png') no-repeat center center;
+			background: transparent url('plugin_go.png') no-repeat center center;
 			width: 32px;
 			height: 32px;
 		}
@@ -193,64 +195,69 @@
 			flex-shrink: 1;
 		}
 		#status > span {
-			transition: height .4s ease-out, opacity .4s ease-out;
 			position: relative;
 			display: block;
 			flex-shrink: 0;
+			opacity: 1;
 			background-color: springgreen;
-			overflow:hidden;
+			overflow: hidden;
 		}
 		/*end status*/
 	</style>
 	<script src="date.extensions.js"></script>
 	<script>
-		var csses = {}; //holds css style sheets ids here dynamically added, used so we dont multi add or reuse same id, id needed cuz need to give each msg its unique id as it likely has may have unique height
+		var csses = {}; //holds keyframe ids in here
 		function addMsg(msg, updateable) {
 			//adds new line to status pane
 			//if want to make it updateable put in a <!---->BLAH<!----> OR `~`BLAH`~`
 			var status = document.querySelector('#status');
+			var sw = document.querySelector('#statusWrap');
 			var el = document.createElement('span');
 			if (updateable) {
 				msg = msg.replace('`~`','<!---->');
 				msg = msg.replace('`~`','<!---->');
 			}
-			el.innerHTML = msg;			
-			el.setAttribute('style','transition:none');
+			el.innerHTML = msg;
+
+			//el.setAttribute('style','transition:none;');
+			
+			//el.addEventListener('transitionend', function() { var sw = document.querySelector('#statusWrap'); sw.scrollTop = sw.scrollHeight;}, false);
+			
 			status.appendChild(el);
 			
 			var itsH = el.offsetHeight;
-			
+			//status.removeChild(el);
 			var css = document.createElement('style');
 			var newid = new Date().getTime();
 			while (csses[newid]) {
 				console.log('csses id exists: existing id is = ' + newid);
 				newid--;
 			}
-			csses[newid] = 1;
-			css.innerHTML = '.a' + newid + ' {height:' + itsH + 'px;opacity:1;}';
+			csses[newid] = 1; //cant be 0, because i do while(csses[newid]) on line 232, but my intent is to check for its existance, but if its 0 it will still report false, which this line will interpert as non-existance
+			css.innerHTML = '.a' + newid + ' { -moz-animation-duration: 1s; -moz-animation-name: b' + newid + '} @-moz-keyframes b' + newid + '{ from{height:0px} to{height:' + itsH + 'px}}';
 			css.setAttribute('id', 'c' + newid);
-			el.setAttribute('class', 'a' + newid);
 			document.body.appendChild(css);
 			
-			el.setAttribute('style','transition:none;height:0;opacity:0');
+			el.addEventListener('animationend', function() {
+				delete csses[newid];
+				document.body.removeChild(css);
+				el.removeAttribute('class');
+			}, false);
 			
-			var trEnd = function(e) { 
-			//alert(e.propertyName)
-				if (e.propertyName == 'opacity') { //because height finishes in .2s and opacity in .4, we need the style attr in tact till the opacity transiton is complete
-					//alert('now removing');
-					el.removeAttribute('class');
-					document.body.removeChild(css);
-					delete csses[newid];
-				} else {
-					//alert('not yet');
-				}
+			/*
+			var oniter = function(e) {
+				alert('0');
+				el.removeEventListener(oniter);
 			}
-			el.addEventListener('transitionend', trEnd, false);
-			
-			setTimeout(function(){el.removeAttribute('style');},10);
-			
+			el.addEventListener('animationiteration', oniter, false);
+			//note: bah! after doing his i figure out that iteration isnt every new calculation, but rather every repeat loop if i choose to repeat the animation. so it wont catch every on calc
+			*/
+			//setTimeout(function(){el.removeAttribute('style');},20);
+	
+			el.classList.add('a' + newid);
+			//setTimeout(function(){ el.setAttribute('class', 'a' + newid); }, 2000);
+			//status.appendChild(el);
 			return;
-			
 			var statusWrap = document.querySelector('#statusWrap');
 			var h1 = document.querySelector('h1');
 			setTimeout(function(){h1.innerHTML = statusWrap.offsetHeight + ' | ' + status.offsetHeight ;},500);
@@ -259,7 +266,7 @@
 			//var status = document.querySelector('#status');
 			var lastMsg = document.querySelector('#status > span:last-of-type');
 			if (lastMsg.innerHTML.indexOf('<\!---->') > -1) {
-				lastMsg.innerHTML = lastMsg.innerHTML.replace(/<\!---->[\s\S]*?<\!---->/,'<\!---->' + msg + '<\!---->');
+				lastMsg.innerHTML = lastMsg.innerHTML.replace(/<\!---->[\s\S]<\!---->/,'<\!---->' + msg + '<\!---->');
 			}
 		}
 		
@@ -271,13 +278,6 @@
 		}
 		
 		function bac_focus(e) {
-			setTimeout(function() {
-				if (bi.selectionStart == 0 && bi.selectionEnd == bi.value.length) {
-					bi.selectionStart = bi.selectionEnd;
-				}
-				//bi.setSelectionRange(bi.value.length, bi.value.length);
-			}, 10);
-			console.log('done');
 			//var bb = bi.nextSibling.nextSibling; //browse button
 			//autocomplete();
 			//bb.innerHTML = 'Press Enter';
@@ -287,7 +287,15 @@
 		var browseac;
 		var bpane;
 		
-		function init() {		
+		function init() {
+			var lastMsg = document.querySelector('#status > span:last-of-type');
+			var msgHeight = lastMsg.offsetHeight;
+			var css = document.createElement('style');
+			css.innerHTML = '#status > span { height:' + msgHeight + 'px }';
+			css.id = 'msgHeightCss';
+			//document.body.appendChild(css);
+			lastMsg.parentNode.removeChild(lastMsg);
+			
 			//browse ac positioning
 			browseac = document.querySelector('#browseac');
 			bi = document.querySelector('#browse input');
@@ -380,7 +388,7 @@
 		</form>
 		<h2 style="flex-shrink:0;">BROWSE</h2>
 		<div id="browse" style="flex-shrink:0;">
-			<div id="browseac" style="display:none;"></div><!--placement is important here, it should be after the text field so shift+tab takes it back into the input field-->
+			<div id="browseac" style="display:none;"></div>
 			<input type="text">
 			<span class="button browse"></span>
 			<span class="button compile"></span>
@@ -408,7 +416,9 @@
 	<div class="main-pane">
 		<h2 onclick="addMsg(new Date().toLocaleString())">STATUS</h2>
 		<div id="statusWrap">
-			<div id="status"></div>
+			<div id="status">
+				<span style="visibility:hidden;">a<!--dummy msg to dynamically figure out height and insert css based on that--></span>
+			</div>
 		</div>
 	</div>
 </body>
