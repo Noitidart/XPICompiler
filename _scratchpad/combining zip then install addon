@@ -31,7 +31,7 @@ if (rv == Ci.nsIFilePicker.returnOK) {
 				dirArr.push(entry);
 			}
 			var relPath = entry.path.replace(dirArr[0].path + '\\', '');
-			var saveInZipAs = relPath;
+			var saveInZipAs = relPath.replace(/\\/g,'/'); //because if use '/' it causes problems in the zip, must use '\'
 			zw.addEntryFile(saveInZipAs, Ci.nsIZipWriter.COMPRESSION_NONE, entry, false);
 		}
 	}

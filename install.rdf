@@ -23,9 +23,6 @@
 		<em:name>XPICompiler</em:name>
 		<em:description>Pick a directory with XPI source files. Zips it up, turns it into XPI, and install it to Firefox.</em:description>
 		<em:creator>Noitidart</em:creator>
-		<em:iconURL/>
-		<em:icon64URL/>
-		
 		<em:optionsType>2</em:optionsType>
 	  </Description>
 	</RDF>

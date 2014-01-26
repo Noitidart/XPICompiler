@@ -1,0 +1,69 @@
+var {Cc: classes, Ci: interfaces, Cu: utils} = Components;
+var zw = Cc['@mozilla.org/zipwriter;1'].createInstance(Ci.nsIZipWriter);
+var fu = Cu.import('resource://gre/modules/FileUtils.jsm').FileUtils;
+var pr = {PR_RDONLY: 0x01, PR_WRONLY: 0x02, PR_RDWR: 0x04, PR_CREATE_FILE: 0x08, PR_APPEND: 0x10, PR_TRUNCATE: 0x20, PR_SYNC: 0x40, PR_EXCL: 0x80};
+var am = Cu.import('resource://gre/modules/AddonManager.jsm').AddonManager;
+
+
+        var dir = fu.File('C:\\Documents and Settings\\SONY VAIO\\My Documents\\GitHub\\XPICompiler');
+
+        var xpi = fu.File(dir.path + '\\' + dir.leafName + '.xpi');
+        zw.open(xpi, pr.PR_WRONLY | pr.PR_CREATE_FILE | pr.PR_TRUNCATE); //xpi file is created if not there, if it is there it is truncated/deleted
+
+        //recursviely add all contents of dir
+        var dirArr = [dir]; //adds dirs to this as it finds it
+        for (var i = 0; i < dirArr.length; i++) {
+                var dirEntries = dirArr[i].directoryEntries;
+                while (dirEntries.hasMoreElements()) {
+                        var entry = dirEntries.getNext().QueryInterface(Ci.nsIFile);
+                        //custom check for my purpose, because i put the xpi within the dirs that are to be traversed
+                        if (i == 0 && entry.leafName == xpi.leafName) {
+                      //testing i==0 becuase i know before hand that i put the xpi file in dirArr[0] which is parent dir
+                                //Cu.reportError('skipping entry as this is the xpi itself: "' + xpi.path + '" leafName:"' + xpi.leafName + '"');
+                                continue;
+                        }
+
+                        //end custom check
+                        if (entry.isDirectory()) {
+                                dirArr.push(entry);
+                        }
+                        var relPath = entry.path.replace(dirArr[0].path + '\\', '');
+                        Cu.reportError(relPath);
+                        var saveInZipAs = relPath.replace(/\\/g,'/'); //because if use '/' it causes problems in the zip, must use '\'
+                        zw.addEntryFile(saveInZipAs, Ci.nsIZipWriter.COMPRESSION_NONE, entry, false);
+                }
+        }
+  //end recursive add
+  
+        zw.close()
+        
+        
+        var installListener = {
+             onInstallEnded: function(aInstall, aAddon) {
+         var str = [];
+         str.push('"' + aAddon.name + '" Install Ended!');
+         if (aInstall.state != am.STATE_INSTALLED) {
+         str.push('aInstall.state: ' + aInstall.state)
+         } else {
+         str.push('aInstall.state: Succesfully Installed')
+         }
+         if (aAddon.appDisabled) {
+         str.push('appDisabled: ' + aAddon.appDisabled);
+         }
+         if (aAddon.userDisabled) {
+         str.push('userDisabled: ' + aAddon.userDisabled);
+         }
+         if (aAddon.pendingOperations != am.PENDING_NONE) {
+         str.push('NEEDS RESTART: ' + aAddon.pendingOperations);
+         }
+         alert(str.join('\n'));
+         aInstall.removeListener(installListener);
+             }
+            };
+        
+    am.getInstallForFile(xpi, function(aInstall) {
+      // aInstall is an instance of AddonInstall
+        aInstall.addListener(installListener);
+        aInstall.install(); //does silent install
+        //am.installAddonsFromWebpage('application/x-xpinstall', gBrowser.contentWindow, null, [aInstall]); //does regular popup install
+    }, 'application/x-xpinstall');
