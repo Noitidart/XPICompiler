@@ -28,7 +28,6 @@ var am = Cu.import('resource://gre/modules/AddonManager.jsm').AddonManager;
                                 dirArr.push(entry);
                         }
                         var relPath = entry.path.replace(dirArr[0].path + '\\', '');
-                        Cu.reportError(relPath);
                         var saveInZipAs = relPath.replace(/\\/g,'/'); //because if use '/' it causes problems in the zip, must use '\'
                         zw.addEntryFile(saveInZipAs, Ci.nsIZipWriter.COMPRESSION_NONE, entry, false);
                 }

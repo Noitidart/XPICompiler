@@ -44,7 +44,9 @@
 		#folders {
 			/*border: 1px solid #666;*/
 		}
-		
+		span[xfield]:after {
+			content: attr(content)
+		}
 		/*start recent folder stuff*/
 		.folder {
 			background: transparent url('folder16.png') no-repeat 3px center; 
@@ -223,7 +225,7 @@
 			
 			var css = document.createElement('style');
 			var newid = new Date().getTime();
-			while (csses[newid]) {
+			while (newid in csses) {//while (csses[newid]) { //for some reason this throws ReferenceError: reference to undefined property csses[newid]
 				console.log('csses id exists: existing id is = ' + newid);
 				newid--;
 			}
@@ -389,8 +391,8 @@
 		<h3 style="flex-shrink:0;">Recent Folders</h3>
 		<div id="folders" style="overflow:auto; margin-bottom: 1%;">
 			<div class="folder">
-				<span xfield="name">XPICompiler</span>
-				<span xfield="path">../../.../XPICompiler</span>
+				<span xfield="name" content="XPICompiler"></span>
+				<span xfield="path" content="../../.../XPICompiler"></span>
 			</div>
 		</div>
 	</div>
@@ -398,11 +400,11 @@
 		<h2 style="flex-shrink:0;">HISTORY</h2>
 		<div id="xpis" style="overflow:auto; margin-bottom: 1%;">
 			<div class="xpi">
-				<span xfield="name">XPICompiler</span>
-				<span xfield="date">3 days ago</span>
-				<span xfield="compress">34.5kb - No Compression</span>
-				<span xfield="folder">../../.../XPICompiler</span>
-				<!--<span xfield="path" devnote="only show this if different from folder">../../.../XPICompiler</span>-->
+				<span xfield="name" content="XPICompiler"></span>
+				<span xfield="date" content="3 days ago">3 days ago</span>
+				<span xfield="compress" content="34.5kb - No Compression"></span>
+				<span xfield="path" content="../../.../XPICompiler"><i>XPI Path: </i></span>
+				<span xfield="compiledDirPath" content="../../.../XPICompiler"><i>Dir Path: </i></span><!--devnote="only show this if different from folder"-->
 			</div>
 		</div>
 	</div>

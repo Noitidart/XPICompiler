@@ -1,0 +1,40 @@
+var noit = 'NOIT1';
+try {
+    Services.wm.removeListener(windowListener);
+} catch (ex) {
+    Cu.reportError(noit + '-ex on remove: ' + ex);
+}
+
+var windowListener = {
+    onOpenWindow: function (aXULWindow) {
+        // Wait for the window to finish loading
+        var aDOMWindow = aXULWindow.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowInternal || Ci.nsIDOMWindow);
+        aDOMWindow.addEventListener("load", function () {
+            Cu.reportError(noit + '- START')
+            aDOMWindow.removeEventListener("load", arguments.callee, false); //this removes this load function from the window
+            Cu.reportError(noit + '-aXULWindow==aDOMWindow'+(aXULWindow==aDOMWindow));
+            Cu.reportError(noit + '- END')
+        }, false);
+    },
+    onCloseWindow: function (aWindow) {},
+    onWindowTitleChange: function (aWindow, aTitle) {}
+};
+
+//to register
+Services.wm.addListener(windowListener);
+
+
+//browser console mod
+var devtools = Cu.import("resource://gre/modules/devtools/Loader.jsm", {}).devtools;
+var HUDService = devtools.require("devtools/webconsole/hudservice");
+var hud = HUDService.getBrowserConsole();
+var btnClear = hud.chromeWindow.document.querySelector('.webconsole-clear-console-button');
+btnClear.addEventListener('mouseover', function() {
+  hud.jsterm.clearOutput(true);
+}, false);
+/*
+var fieldFilter = hud.chromeWindow.document.querySelector('.hud-filter-box');
+fieldFilter.value = noit;
+hud.chromeWindow.focus();
+fieldFilter.focus()
+*/
