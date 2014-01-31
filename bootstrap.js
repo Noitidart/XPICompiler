@@ -210,12 +210,18 @@ function listenPageLoad(event) {
 
 function createHistoryDom() {
 		//do folders
+		if (historyJson.recs.length > 0) {
+			xDoc.querySelector('#folders div.nohistory').style.display = 'none'; //hide the nohistory div
+		} else {
+			xDoc.querySelector('#folders div.nohistory').style.display = '';
+		}
 		for (var i=0; i<historyJson.recs.length; i++) {
 			var el = xDoc.createElement('div')
 			el.setAttribute('class', 'folder');
-			el.setAttribute('style','order:' + historyJson.recs[i][1] + ';');
+			var order = ((historyJson.recs[i][1] - new Date('2014-01-01T02:39:12.537Z').getTime()) / 1000).toFixed(0);
+			el.setAttribute('style','order:' + order + ';');
 			var content = {};
-			content.path = historyJson.recs[i][0].replace(/\\/g,'\\\\');
+			content.path = historyJson.recs[i][0].replace(/\\\\/g,'\\');
 			content.name = content.path.substr(content.path.lastIndexOf('\\')+1)
 			el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="path" content="' + content.path + '"></span>';
 			paneRecs.appendChild(el);
@@ -223,17 +229,23 @@ function createHistoryDom() {
 		}
 
 		//do xpis
+		if (historyJson.xpis.length > 0) {
+			xDoc.querySelector('#xpis div.nohistory').style.display = 'none'; //hide the nohistory div
+		} else {
+			xDoc.querySelector('#xpis div.nohistory').style.display = '';
+		}
 		for (var i=0; i<historyJson.xpis.length; i++) {
 			var el = xDoc.createElement('div')
 			el.setAttribute('class', 'xpi');
-			el.setAttribute('style','order:' + historyJson.xpis[i][1] + ';');
+			var order = ((historyJson.xpis[i][1] - new Date('2014-01-01T02:39:12.537Z').getTime()) / 1000).toFixed(0);
+			el.setAttribute('style','order:' + order + ';');
 			var content = {};
-			content.path = historyJson.xpis[i][0].replace(/\\/g,'\\\\');
-			content.name = content.path.substr(content.path.lastIndexOf('\\')+1)
+			content.path = historyJson.xpis[i][0].replace(/\\\\/g,'\\');
+			content.name = content.path.substring(content.path.lastIndexOf('\\')+1,content.path.lastIndexOf('.')); //we dont want file extension to show in name so lastIndexOf('.xpi')
 			content.lastCompiled = new Date(historyJson.xpis[i][1]).toRelativeTime();
-			content.sizecompress = historyJson.xpis[i][2] + 'kB - ' + (compressionStr[historyJson.xpis[i][3]]);
-			content.compiledDirPath = historyJson.xpis[i][4].replace(/\\/g,'\\\\');
-			el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="lastCompiled" content="' + content.lastCompiled + '"><span xfield="sizecompress" content="' + content.sizecompress + '"><span xfield="path" content="' + content.path + '"></span><span xfield="compiledDirPath" content="' + content.compiledDirPath + '"></span>';
+			content.sizecompress = format_bytes(historyJson.xpis[i][2]) + ' - ' + (compressionStr[historyJson.xpis[i][3]]);
+			content.compiledDirPath = historyJson.xpis[i][4].replace(/\\\\/g,'\\');
+			el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="lastCompiled" content="' + content.lastCompiled + '"></span><span xfield="sizecompress" content="' + content.sizecompress + '"></span><span xfield="path" content="' + content.path + '"></span><span xfield="compiledDirPath" content="' + content.compiledDirPath + '"></span>';
 			paneXpis.appendChild(el);
 			//added
 		}
@@ -241,18 +253,21 @@ function createHistoryDom() {
 }
 
 function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
+	var order = ((lastCompiled - new Date('2014-01-01T02:39:12.537Z').getTime()) / 1000).toFixed(0);
 	if (!compiledDirPath) {
 		//its folder
-		Cu.reportError('its folder')
+		if (historyJson.recs.length == 0) {
+			xDoc.querySelector('#folders div.nohistory').style.display = 'none'; //hide the nohistory div
+		}
 		for (var i=0; i<historyJson.recs.length; i++) {
 			if (historyJson.recs[i][0] == path) {
 				historyJson.recs[i][1] = lastCompiled;
-				Cu.reportError('looking for path where content = "' + path.replace(/\\/g,'\\\\') + '"')
-				var el = xDoc.querySelector('#folders > div > span[content="' + path.replace(/\\/g,'\\\\') + '"]');
-				if (el) {
-					el = el.parentNode;
-				}
-				el.setAttribute('style','order:' + lastCompiled + ';');
+				var querySelectorPatt = '#folders > div > span[content="' + path.replace(/\\/g,'\\\\') + '"]';
+				Cu.reportError('looking for path where content = ' + querySelectorPatt)
+				var el = xDoc.querySelector(querySelectorPatt);
+				//el should always exist, because it found path in historyJson
+				el = el.parentNode;
+				el.setAttribute('style','order:' + order + ';');
 				//updated
 				updateHistoryFile();
 				return;
@@ -261,9 +276,9 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 		historyJson.recs.push([path, lastCompiled]);
 		var el = xDoc.createElement('div')
 		el.setAttribute('class', 'folder');
-		el.setAttribute('style','order:' + lastCompiled + ';');
+		el.setAttribute('style','order:' + order + ';');
 		var content = {};
-		content.path = path.replace(/\\/g,'\\\\');
+		content.path = path.replace(/\\\\/g,'\\');
 		content.name = content.path.substr(content.path.lastIndexOf('\\')+1)
 		el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="path" content="' + content.path + '"></span>';
 		paneRecs.appendChild(el);
@@ -271,24 +286,27 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 		updateHistoryFile();
 	} else {
 		//its xpi
+		if (historyJson.xpis.length == 0) {
+			xDoc.querySelector('#xpis div.nohistory').style.display = 'none'; //hide the nohistory div
+		}
 		for (var i=0; i<historyJson.xpis.length; i++) {
-			if (historyJson.recs[i][0] == path) {
-				historyJson.recs[i][1] = lastCompiled;
-				historyJson.recs[i][2] = size;
-				historyJson.recs[i][3] = compression;
-				historyJson.recs[i][4] = compiledDirPath;
-				var el = xDoc.querySelector('#xpis > div > span[content="' + path.replace(/\\/g,'\\\\') + '"]');
-				if (el) {
-					el = el.parentNode;
-				}
-				el.setAttribute('style','order:' + lastCompiled + ';');
+			if (historyJson.xpis[i][0] == path) {
+				historyJson.xpis[i][1] = lastCompiled;
+				historyJson.xpis[i][2] = size;
+				historyJson.xpis[i][3] = compression;
+				historyJson.xpis[i][4] = compiledDirPath;
+				var querySelectorPatt = '#xpis > div > span[content="' + path.replace(/\\/g,'\\\\') + '"]';
+				Cu.reportError('looking for path where content = ' + querySelectorPatt)
+				var el = xDoc.querySelector(querySelectorPatt);
+				el = el.parentNode;
+				el.setAttribute('style','order:' + order + ';');
 				var content = {};
-				content.path = path.replace(/\\/g,'\\\\');
-				content.name = content.path.substr(content.path.lastIndexOf('\\')+1)
+				content.path = path.replace(/\\\\/g,'\\');
+				content.name = content.path.substring(content.path.lastIndexOf('\\')+1,content.path.lastIndexOf('.')); //we dont want file extension to show in name so lastIndexOf('.xpi')
 				content.lastCompiled = new Date(lastCompiled).toRelativeTime();
-				content.sizecompress = size + 'kB - ' + compressionStr[compression];
+				content.sizecompress = format_bytes(size) + ' - ' + compressionStr[compression];
 				content.compiledDirPath = compiledDirPath.replace(/\\/g,'\\\\');
-				el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="lastCompiled" content="' + content.lastCompiled + '"><span xfield="sizecompress" content="' + content.sizecompress + '"><span xfield="path" content="' + content.path + '"></span><span xfield="compiledDirPath" content="' + content.compiledDirPath + '"></span>';
+				el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="lastCompiled" content="' + content.lastCompiled + '"></span><span xfield="sizecompress" content="' + content.sizecompress + '"></span><span xfield="path" content="' + content.path + '"></span><span xfield="compiledDirPath" content="' + content.compiledDirPath + '"></span>';
 				//updated
 				updateHistoryFile();
 				return;
@@ -297,13 +315,13 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 		historyJson.xpis.push([path, lastCompiled, size, compression, compiledDirPath]);
 		var el = xDoc.createElement('div')
 		el.setAttribute('class', 'xpi');
-		el.setAttribute('style','order:' + lastCompiled + ';');
+		el.setAttribute('style','order:' + order + ';');
 		var content = {};
-		content.path = path.replace(/\\/g,'\\\\');
-		content.name = content.path.substr(content.path.lastIndexOf('\\')+1)
+		content.path = path.replace(/\\\\/g,'\\');
+		content.name = content.path.substring(content.path.lastIndexOf('\\')+1,content.path.lastIndexOf('.')); //we dont want file extension to show in name so lastIndexOf('.xpi')
 		content.lastCompiled = new Date(lastCompiled).toRelativeTime();
-		content.sizecompress = size + 'kB - ' + (compressionStr[compression]);
-		content.compiledDirPath = compiledDirPath.replace(/\\/g,'\\\\');
+		content.sizecompress = format_bytes(size) + ' - ' + (compressionStr[compression]);
+		content.compiledDirPath = compiledDirPath.replace(/\\\\/g,'\\');
 		el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="lastCompiled" content="' + content.lastCompiled + '"><span xfield="sizecompress" content="' + content.sizecompress + '"><span xfield="path" content="' + content.path + '"></span><span xfield="compiledDirPath" content="' + content.compiledDirPath + '"></span>';
 		paneXpis.appendChild(el);
 		updateHistoryFile();
@@ -343,21 +361,22 @@ function readHistoryFile(){
 		Cu.reportError('read status = ' + status);
 		Cu.reportError('read status isSucC = ' + Components.isSuccessCode(status));
 		if (!Components.isSuccessCode(status)) {
+			jsWin.addMsg('No history file found so creating blank object');
 			historyJson = {recs:[],xpis:[]};
 		} else {
 			historyJson = JSON.parse(dataReadFromFile);
 		}
+		createHistoryDom();
 		jsWin.addMsg('History File Read Done');
 	});
-	createHistoryDom();
 }
 
 function updateHistoryFile() {
 	var historyFile = FileUtils.getFile('ProfD', ['XPICompiler_history.txt']);
 	jsWin.addMsg('Upadting History File');
 	overwriteFile(historyFile, JSON.stringify(historyJson), function (status) {
-		jsWin.addMsg('History File Upadte Done');
 		jsWin.addMsg('History file update status: ' + Components.isSuccessCode(status));
+		jsWin.addMsg('History File Upadte Done');
 	});
 }
 
@@ -373,9 +392,8 @@ function btnBrowse_click(e,startDir) {
 			var startDirNsiFile = FileUtils.File(startDir);
 		} catch (ex) {
 			jsWin.addMsg('Invalid Path For Start Directory - ' + startDir);
-			var starDirNsiFile = null;
 		}
-		if (starDirNsiFile) {
+		if (startDirNsiFile) {
 			if (!startDirNsiFile.exists()) {
 				jsWin.addMsg('Start Directory Does Not Exist - ' + startDirNsiFile.path);
 			} else {
@@ -394,12 +412,14 @@ function btnBrowse_click(e,startDir) {
 	fieldBrowse.value = dir.path;
 	
 	btnCompile.focus();
-	updateHistory(dir.path, new Date().getTime());
+	if (dir.parent) {
+		updateHistory(dir.parent.path, new Date().getTime()); //add parent of selected folder to recent folders list
+	}
 }
 
 function btnCompile_click(e, overridePath) {	
 	if (overridePath) {
-		var path = overridePath;
+		var path = overridePath.replace(/\.xpi$/i,'');
 	} else {
 		var path = fieldBrowse.value;
 	}
@@ -459,7 +479,7 @@ function btnCompile_click(e, overridePath) {
     AddonManager.getInstallForFile(xpi, function(aInstall) {
       // aInstall is an instance of AddonInstall
         aInstall.addListener(installListener);
-        aInstall.install(); //does silent install
+		aInstall.install(); //does silent install
         //AddonManager.installAddonsFromWebpage('application/x-xpinstall', gBrowser.contentWindow, null, [aInstall]); //does regular popup install
     }, 'application/x-xpinstall');
 }
@@ -471,38 +491,35 @@ function paneXpis_click(e) {
 		return;
 	}
 	
-	var path;
-	Cu.reportError('className = ' + target.className)
-	Cu.reportError('tagName = ' + target.tagName)
-	if (target.className == 'folder') {
-		path = target.querySelector('[xfield=path]').getAttribute('content');
-	} else if (target.tagName == 'SPAN') {
-		path = target.parentNode.querySelector('[xfield=path]').getAttribute('content');
+	var parentDiv = target;
+	var i = 0;
+	while (parentDiv.className != 'xpi') {
+		i++;
+		Cu.reportError('try i = ' + i);
+		parentDiv = parentDiv.parentNode;
 	}
+	var path = parentDiv.querySelector('[xfield=compiledDirPath]').getAttribute('content');//.replace(/\\(?!\\)/g,'\\\\');;
 	
-	target.ownerDocument.defaultView.alert('path = ' + path);
+	//target.ownerDocument.defaultView.alert('path = ' + path);
 	btnCompile_click(null, path);
 }
 
 function paneRecs_click(e) {
 	var target = e.target;
-	if (target.id == 'recs') {
+	if (target.id == 'folders') {
 		Cu.reportError('clicked on main recs div');
 		return;
 	}
 	
-	var path;
-	Cu.reportError('className = ' + target.className)
-	Cu.reportError('tagName = ' + target.tagName)
-	if (target.className == 'xpi') {
-		path = target.querySelector('[xfield=path]').getAttribute('content');
-	} else if (target.tagName == 'SPAN') {
-		path = target.parentNode.querySelector('[xfield=path]').getAttribute('content');
-	} else if (target.parentNode.tagName == 'SPAN') {
-		path = target.parentNode.parentNode.querySelector('[xfield=path]').getAttribute('content');
+	var parentDiv = target;
+	var i = 0;
+	while (parentDiv.className != 'folder') {
+		i++;
+		Cu.reportError('try i = ' + i);
+		parentDiv = parentDiv.parentNode;
 	}
-	
-	target.ownerDocument.defaultView.alert('path = ' + path);
+	var path = parentDiv.querySelector('[xfield=path]').getAttribute('content');//.replace(/\\(?!\\)/g,'\\\\');;
+	//target.ownerDocument.defaultView.alert('path = ' + path);
 	btnBrowse_click(null, path);
 }
 
@@ -521,7 +538,7 @@ function fieldBrowse_keydown() {
 /*end - autocomplete stuff*/
 
 var installListener = {
-   onInstallEnded: function(aInstall, aAddon) {
+	onInstallEnded: function(aInstall, aAddon) {
 	   var str = [];
 	   //str.push('"' + aAddon.name + '" Install Ended!');
 	   jsWin.addMsg('"' + aAddon.name + '" Install Ended!');
@@ -546,7 +563,10 @@ var installListener = {
 	   }
 	   //alert(str.join('\n'));
 	   aInstall.removeListener(installListener);
-   }
+	},
+	onInstallStarted: function(aInstall) {
+		jsWin.addMsg('"' + aAddon.name + '" Install Started...');
+	}
 };
 /*end - frontend event listeners*/
 
@@ -645,7 +665,45 @@ function escapeRegExp(text) {
 	}
 	return text.replace(arguments.callee.sRE, '\\$1');
 }
-/*end - library funcs*/
+function number_format( number, decimals, dec_point, thousands_sep ) {
+	//author: http://snipplr.com/view.php?codeview&id=5945
+	//ported from php so can use manual
+    // http://kevin.vanzonneveld.net
+    // +   original by: Jonas Raoni Soares Silva (http://www.jsfromhell.com)
+    // +   improved by: Kevin van Zonneveld (http://kevin.vanzonneveld.net)
+    // +     bugfix by: Michael White (http://crestidg.com)
+    // +     bugfix by: Benjamin Lupton
+    // +     bugfix by: Allan Jensen (http://www.winternet.no)
+    // +    revised by: Jonas Raoni Soares Silva (http://www.jsfromhell.com)    
+    // *     example 1: number_format(1234.5678, 2, '.', '');
+    // *     returns 1: 1234.57
+ 
+    var n = number, c = isNaN(decimals = Math.abs(decimals)) ? 2 : decimals;
+    var d = dec_point == undefined ? "," : dec_point;
+    var t = thousands_sep == undefined ? "." : thousands_sep, s = n < 0 ? "-" : "";
+    var i = parseInt(n = Math.abs(+n || 0).toFixed(c)) + "", j = (j = i.length) > 3 ? j % 3 : 0;
+    
+    return s + (j ? i.substr(0, j) + t : "") + i.substr(j).replace(/(\d{3})(?=\d)/g, "$1" + t) + (c ? d + Math.abs(n - i).toFixed(c).slice(2) : "");
+}
+function format_bytes(filesize) {
+	//author: http://snipplr.com/view.php?codeview&id=5949
+	//filesize must be in bytes
+	//renamed func from size_format
+	if (filesize >= 1073741824) {
+	     filesize = number_format(filesize / 1073741824, 2, '.', '') + ' GB';
+	} else { 
+		if (filesize >= 1048576) {
+     		filesize = number_format(filesize / 1048576, 2, '.', '') + ' MB';
+   	} else { 
+			if (filesize >= 1024) {
+    		filesize = number_format(filesize / 1024, 0) + ' KB';
+  		} else {
+    		filesize = number_format(filesize, 0) + ' Bytes';
+			};
+ 		};
+	};
+  return filesize;
+};/*end - library funcs*/
 
 /*start - relative date extension*/
 /**

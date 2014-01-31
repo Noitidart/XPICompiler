@@ -43,9 +43,19 @@
 		}
 		#folders {
 			/*border: 1px solid #666;*/
+			display: flex;
+			flex-direction: column-reverse;
 		}
 		span[xfield]:after {
 			content: attr(content)
+		}
+		span[xfield=compiledDirPath]:before {
+			content: 'Dir Path: ';
+			font-style: italic;
+		}
+		.xpi > span[xfield=path]:before {
+			content: 'XPI Path: ';
+			font-style: italic;
 		}
 		/*start recent folder stuff*/
 		.folder {
@@ -54,7 +64,7 @@
 			border-radius: 5px;
 			margin: 5px 0;
 			cursor: pointer;
-			 flex-shrink: 0;
+			flex-shrink: 0;
 		}
 		.folder span[xfield=name] {
 			display:block !important;
@@ -74,6 +84,10 @@
 		/*end recent folder stuff*/
 		
 		/*start recent xpi stuff*/
+		#xpis {
+			display: flex;
+			flex-direction: column-reverse;
+		}
 		.xpi {
 			background: transparent url('xpi16.png') no-repeat 3px center; 
 			padding: 5px 5px 5px 24px;
@@ -204,6 +218,10 @@
 			overflow:hidden;
 		}
 		/*end status*/
+		
+		.nohistory {
+			font-style: italic;
+		}
 	</style>
 	<script src="date.extensions.js"></script>
 	<script>
@@ -390,22 +408,28 @@
 		</div>
 		<h3 style="flex-shrink:0;">Recent Folders</h3>
 		<div id="folders" style="overflow:auto; margin-bottom: 1%;">
+			<div class="nohistory">
+				<span>No Recently Browsed Directories</span>
+			</div><!--
 			<div class="folder">
 				<span xfield="name" content="XPICompiler"></span>
 				<span xfield="path" content="../../.../XPICompiler"></span>
-			</div>
+			</div>-->
 		</div>
 	</div>
 	<div class="main-pane">
 		<h2 style="flex-shrink:0;">HISTORY</h2>
 		<div id="xpis" style="overflow:auto; margin-bottom: 1%;">
+			<div class="nohistory">
+				<span>No Recently Compiled Directories</span>
+			</div><!--
 			<div class="xpi">
 				<span xfield="name" content="XPICompiler"></span>
 				<span xfield="date" content="3 days ago">3 days ago</span>
 				<span xfield="compress" content="34.5kb - No Compression"></span>
 				<span xfield="path" content="../../.../XPICompiler"><i>XPI Path: </i></span>
-				<span xfield="compiledDirPath" content="../../.../XPICompiler"><i>Dir Path: </i></span><!--devnote="only show this if different from folder"-->
-			</div>
+				<span xfield="compiledDirPath" content="../../.../XPICompiler" devnote="only show this if different from folder"><i>Dir Path: </i></span>
+			</div>-->
 		</div>
 	</div>
 	<div class="main-pane">
