@@ -510,7 +510,7 @@ function btnCompile_click(e, overridePath) {
 	jsWin.addMsg('Zipping Complete');
 	updateHistory(xpi.path, new Date().getTime(), xpi.fileSize, 0, dir.path);
 	
-	jsWin.updateMsg('Importing XPI to Firefox');
+	jsWin.addMsg('Importing XPI to Firefox');
 	
 	
 	
