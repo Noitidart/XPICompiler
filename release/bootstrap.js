@@ -43,8 +43,8 @@ function registerAbout() {
 		getURIFlags: function (aURI) 0
 	};
 	for (let[y, cls] in Iterator([AboutModule])) {
-	   //Cu.reportError('y: ' + y);
-	   //Cu.reportError('cls: ' + cls);
+
+
 		try {
 			var factory = {
 				_cls: cls,
@@ -64,7 +64,7 @@ function registerAbout() {
 			 Cm.unregisterFactory(factory._cls.prototype.classID, factory);
 			});
 		} catch (ex) {
-			Cu.reportError('failed to register module: ' + cls.name + '\nexception thrown: ' + ex);
+
 		}
 	}
 }
@@ -142,7 +142,7 @@ function listenPageLoad(event) {
 			}
 		}
 		
-		Cu.reportError('foundXpilers len = ' + foundXpilers.length);
+
 		var foundXpilerI = -1;
 		if (foundXpilers.length == 1) {
 			//foundXpilers[0].aDOMWindow.alert('setting this to firstXpiler')
@@ -218,7 +218,11 @@ function listenPageLoad(event) {
 
 function trashRecs() {
 	if (xWin.confirm('This will remove all folder history from "Recent Folders" list. Are you sure you want to do this?')) {
-		paneRecs.innerHTML = '<div class="nohistory"><span>No Recently Browsed Directories</span></div>';
+		var childNodes = paneRecs.childNodes;
+		childNodes[0].style.display = ''; //the nothing there container
+		for (var i=1; i<childNodes.length; i++) {
+			paneRecs.removeChild(childNodes[i]);
+		}
 		historyJson.recs = [];
 		updateHistoryFile();
 	}
@@ -226,14 +230,21 @@ function trashRecs() {
 
 function trashXpis() {
 	if (xWin.confirm('This will remove all XPI history from "History" list. Are you sure you want to do this?')) {
-		paneXpis.innerHTML = '<div class="nohistory"><span>No Recently Compiled Directories</span></div>';
+		var childNodes = paneRecs.childNodes;
+		childNodes[0].style.display = ''; //the nothing there container
+		for (var i=1; i<childNodes.length; i++) {
+			paneRecs.removeChild(childNodes[i]);
+		}
 		historyJson.xpis = [];
 		updateHistoryFile();
 	}
 }
 
 function trashStatus() {
-	xDoc.querySelector('#status').innerHTML = '';
+	var childNodes = xDoc.querySelector('#status').childNodes;
+	for (var i=0; i<childNodes.length; i++) {
+		paneRecs.removeChild(childNodes[i]);
+	}
 }
 
 function createHistoryDom() {
@@ -243,6 +254,7 @@ function createHistoryDom() {
 		} else {
 			xDoc.querySelector('#folders div.nohistory').style.display = '';
 		}
+		
 		for (var i=0; i<historyJson.recs.length; i++) {
 			var el = xDoc.createElement('div')
 			el.setAttribute('class', 'folder');
@@ -250,9 +262,30 @@ function createHistoryDom() {
 			el.setAttribute('style','order:' + order + ';');
 			var content = {};
 			content.path = historyJson.recs[i][0].replace(/\\\\/g,'\\');
-			content.name = content.path.substr(content.path.lastIndexOf('\\')+1)
-			el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="path" content="' + content.path + '"></span>';
-			el.innerHTML += '<div class="tools"><span class="open-in-folder" title="Open in Folder"></span><span class="remove-from-history" title="Remove from History"></span></div>'
+			content.name = content.path.substr(content.path.lastIndexOf('\\')+1);
+
+				var xfieldOrder = ['name', 'path'];
+				for (var j=0; j<xfieldOrder.length; j++) {
+					var span = xDoc.createElement('span');
+					span.setAttribute('xfield', xfieldOrder[j]);
+					span.setAttribute('content', content[xfieldOrder[j]]);
+					el.appendChild(span);
+				}
+
+				//append tools
+				var div = xDoc.createElement('div');
+				div.setAttribute('class', 'tools');
+					var span = xDoc.createElement('span');
+					span.setAttribute('class', 'open-in-folder');
+					span.setAttribute('title', 'Open in Folder');
+					div.appendChild(span);
+					var span = xDoc.createElement('span');
+					span.setAttribute('class', 'remove-from-history');
+					span.setAttribute('title', 'Remove from History');
+					div.appendChild(span);
+				el.appendChild(div);
+				//end append tools
+			
 			paneRecs.appendChild(el);
 			//added
 		}
@@ -263,6 +296,7 @@ function createHistoryDom() {
 		} else {
 			xDoc.querySelector('#xpis div.nohistory').style.display = '';
 		}
+		
 		for (var i=0; i<historyJson.xpis.length; i++) {
 			var el = xDoc.createElement('div')
 			el.setAttribute('class', 'xpi');
@@ -274,8 +308,32 @@ function createHistoryDom() {
 			content.lastCompiled = new Date(historyJson.xpis[i][1]).toRelativeTime(1000);
 			content.sizecompress = format_bytes(historyJson.xpis[i][2]) + ' - ' + (compressionStr[historyJson.xpis[i][3]]);
 			content.compiledDirPath = historyJson.xpis[i][4].replace(/\\\\/g,'\\');
-			el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="lastCompiled" gettime="' + historyJson.xpis[i][1] + '" content="' + content.lastCompiled + '"></span><span xfield="sizecompress" content="' + content.sizecompress + '"></span><span xfield="path" content="' + content.path + '"></span><span xfield="compiledDirPath" content="' + content.compiledDirPath + '"></span>';
-			el.innerHTML += '<div class="tools"><span class="open-in-folder" title="Open in Folder"></span><span class="remove-from-history" title="Remove from History"></span></div>'
+			var lastCompiled = historyJson.xpis[i][1];
+				var xfieldOrder = ['name', 'lastCompiled', 'sizecompress', 'path', 'compiledDirPath'];
+				for (var j=0; j<xfieldOrder.length; j++) {
+					var span = xDoc.createElement('span');
+					span.setAttribute('xfield', xfieldOrder[j]);
+					span.setAttribute('content', content[xfieldOrder[j]]);
+					if (xfieldOrder[j] == 'lastCompiled') {
+						span.setAttribute('gettime', lastCompiled);
+					}
+					el.appendChild(span);
+				}
+
+				//append tools
+				var div = xDoc.createElement('div');
+				div.setAttribute('class', 'tools');
+					var span = xDoc.createElement('span');
+					span.setAttribute('class', 'open-in-folder');
+					span.setAttribute('title', 'Open in Folder');
+					div.appendChild(span);
+					var span = xDoc.createElement('span');
+					span.setAttribute('class', 'remove-from-history');
+					span.setAttribute('title', 'Remove from History');
+					div.appendChild(span);
+				el.appendChild(div);
+				//end append tools
+			
 			paneXpis.appendChild(el);
 			//added
 		}
@@ -293,7 +351,7 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 			if (historyJson.recs[i][0] == path) {
 				historyJson.recs[i][1] = lastCompiled;
 				var querySelectorPatt = '#folders span[content="' + path.replace(/\\/g,'\\\\') + '"]';
-				Cu.reportError('looking for path where content = ' + querySelectorPatt)
+
 				var el = xDoc.querySelector(querySelectorPatt);
 				//el should always exist, because it found path in historyJson
 				el = el.parentNode;
@@ -311,8 +369,29 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 		var content = {};
 		content.path = path.replace(/\\\\/g,'\\');
 		content.name = content.path.substr(content.path.lastIndexOf('\\')+1)
-		el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="path" content="' + content.path + '"></span>';
-		el.innerHTML += '<div class="tools"><span class="open-in-folder" title="Open in Folder"></span><span class="remove-from-history" title="Remove from History"></span></div>'
+
+				var xfieldOrder = ['name', 'path'];
+				for (var i=0; i<xfieldOrder.length; i++) {
+					var span = xDoc.createElement('span');
+					span.setAttribute('xfield', xfieldOrder[i]);
+					span.setAttribute('content', content[xfieldOrder[i]]);
+					el.appendChild(span);
+				}
+
+				//append tools
+				var div = xDoc.createElement('div');
+				div.setAttribute('class', 'tools');
+					var span = xDoc.createElement('span');
+					span.setAttribute('class', 'open-in-folder');
+					span.setAttribute('title', 'Open in Folder');
+					div.appendChild(span);
+					var span = xDoc.createElement('span');
+					span.setAttribute('class', 'remove-from-history');
+					span.setAttribute('title', 'Remove from History');
+					div.appendChild(span);
+				el.appendChild(div);
+				//end append tools
+		
 		paneRecs.appendChild(el);
 		paneRecs.scrollTop = 0;
 		//added
@@ -329,10 +408,10 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 				historyJson.xpis[i][3] = compression;
 				historyJson.xpis[i][4] = compiledDirPath;
 				var querySelectorPatt = '#xpis span[content="' + path.replace(/\\/g,'\\\\') + '"]';
-				Cu.reportError('looking for path where content = ' + querySelectorPatt)
+
 				var el = xDoc.querySelector(querySelectorPatt);
 				el = el.parentNode;
-				Cu.reportError('parentNode innerHTML = ' + el.innerHTML);
+
 				el.setAttribute('style','order:' + order + ';');
 				paneXpis.scrollTop = 0;
 				var content = {};
@@ -341,8 +420,17 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 				content.lastCompiled = new Date(lastCompiled).toRelativeTime(1000);
 				content.sizecompress = format_bytes(size) + ' - ' + compressionStr[compression];
 				content.compiledDirPath = compiledDirPath.replace(/\\\\/g,'\\');
-				el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="lastCompiled" gettime="' +  lastCompiled + '" content="' + content.lastCompiled + '"></span><span xfield="sizecompress" content="' + content.sizecompress + '"></span><span xfield="path" content="' + content.path + '"></span><span xfield="compiledDirPath" content="' + content.compiledDirPath + '"></span>';
-				el.innerHTML += '<div class="tools"><span class="open-in-folder" title="Open in Folder"></span><span class="remove-from-history" title="Remove from History"></span></div>';
+				
+				var elChilds = el.childNodes;
+				for (var j=0; j<elChilds.length; j++) {
+					var xfield = elChilds[j].getAttribute('xfield');
+
+					elChilds[j].setAttribute('content', content[xfield]);
+					if (xfield == 'lastCompiled') {
+						elChilds[j].setAttribute('gettime', lastCompiled);
+					}
+				}
+
 				//updated
 				updateHistoryFile();
 				return;
@@ -358,8 +446,32 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 		content.lastCompiled = new Date(lastCompiled).toRelativeTime(1000);
 		content.sizecompress = format_bytes(size) + ' - ' + (compressionStr[compression]);
 		content.compiledDirPath = compiledDirPath.replace(/\\\\/g,'\\');
-		el.innerHTML = '<span xfield="name" content="' + content.name + '"></span><span xfield="lastCompiled" gettime="' +  lastCompiled + '" content="' + content.lastCompiled + '"></span><span xfield="sizecompress" content="' + content.sizecompress + '"></span><span xfield="path" content="' + content.path + '"></span><span xfield="compiledDirPath" content="' + content.compiledDirPath + '"></span>';
-		el.innerHTML += '<div class="tools"><span class="open-in-folder" title="Open in Folder"></span><span class="remove-from-history" title="Remove from History"></span></div>'
+		
+				var xfieldOrder = ['name', 'lastCompiled', 'sizecompress', 'path', 'compiledDirPath'];
+				for (var i=0; i<xfieldOrder.length; i++) {
+					var span = xDoc.createElement('span');
+					span.setAttribute('xfield', xfieldOrder[i]);
+					span.setAttribute('content', content[xfieldOrder[i]]);
+					if (xfieldOrder[i] == 'lastCompiled') {
+						span.setAttribute('gettime', lastCompiled);
+					}
+					el.appendChild(span);
+				}
+
+				//append tools
+				var div = xDoc.createElement('div');
+				div.setAttribute('class', 'tools');
+					var span = xDoc.createElement('span');
+					span.setAttribute('class', 'open-in-folder');
+					span.setAttribute('title', 'Open in Folder');
+					div.appendChild(span);
+					var span = xDoc.createElement('span');
+					span.setAttribute('class', 'remove-from-history');
+					span.setAttribute('title', 'Remove from History');
+					div.appendChild(span);
+				el.appendChild(div);
+				//end append tools
+		
 		paneXpis.appendChild(el);
 		paneXpis.scrollTop = 0;
 		updateHistoryFile();
@@ -396,14 +508,15 @@ function readHistoryFile(){
 	var historyFile = FileUtils.getFile('ProfD', ['XPICompiler_history.txt']);
 	//jsWin.addMsg('Reading History File');
 	readFile(historyFile, function (dataReadFromFile, status) {
-		Cu.reportError('read status = ' + status);
-		Cu.reportError('read status isSucC = ' + Components.isSuccessCode(status));
+
+
 		if (!Components.isSuccessCode(status)) {
 			//jsWin.addMsg('No history file found so creating blank object');
 			historyJson = {recs:[],xpis:[]};
 		} else {
 			historyJson = JSON.parse(dataReadFromFile);
 		}
+		
 		createHistoryDom();
 		//jsWin.addMsg('History File Read Done');
 	});
@@ -425,7 +538,7 @@ var historyJson = {recs:[],xpis:[]};
 function btnBrowse_click(e,startDir) {
 	cServ.fp.init(xWin, 'Select Directory to Compile', Ci.nsIFilePicker.modeGetFolder);
 	if (startDir) {
-		Cu.reportError('startdir = ' + startDir);
+
 		try {
 			var startDirNsiFile = FileUtils.File(startDir);
 		} catch (ex) {
@@ -465,21 +578,21 @@ function btnCompile_click(e, overridePath) {
 		var dir = FileUtils.File(path);
 	} catch (ex) {
 		jsWin.addMsg('Browse Field Path is Invalid - "' + path + '"')
-		xWin.alert('<font color="red">Browse Field Path is Invalid - "' + path + '"</font>');
+		xWin.alert('<red>Browse Field Path is Invalid - "' + path + '"');
 		return;
 	}
 	if (!dir.exists()) {
-		jsWin.addMsg('<font color="red">Directory does not exist - ' + dir.path + '</font>')
+		jsWin.addMsg('<red>Directory does not exist - ' + dir.path)
 		xWin.alert('Directory does not exist!');
 		return;
 	}
 		
 	var xpi = FileUtils.File(dir.path + '\\' + dir.leafName + '.xpi');
 	cServ.zw.open(xpi, pr.PR_WRONLY | pr.PR_CREATE_FILE | pr.PR_TRUNCATE); //xpi file is created if not there, if it is there it is truncated/deleted
-	jsWin.addMsg('XPI File Created - <b>' + xpi.leafName + '</b>');
+	jsWin.addMsg('XPI File Created - "' + xpi.leafName + '"');
 
 	//recursviely add all contents of dir
-	jsWin.addMsg('Zipping Contents - `~`Initiating...`~`',1);
+	jsWin.addMsg('Zipping Contents - ', 'Initiating...');
 	
 	var dirArr = [dir]; //adds dirs to this as it finds it
 	for (var i = 0; i < dirArr.length; i++) {
@@ -489,7 +602,7 @@ function btnCompile_click(e, overridePath) {
 			//custom check for my purpose, because i put the xpi within the dirs that are to be traversed
 			if (i == 0 && entry.leafName == xpi.leafName) {
 				//testing i==0 becuase i know before hand that i put the xpi file in dirArr[0] which is parent dir
-				//Cu.reportError('skipping entry as this is the xpi itself: "' + xpi.path + '" leafName:"' + xpi.leafName + '"');
+
 				continue;
 			}
 
@@ -525,7 +638,7 @@ function btnCompile_click(e, overridePath) {
 function paneXpis_click(e) {
 	var target = e.target;
 	if (target.id == 'xpis') {
-		Cu.reportError('clicked on main xpis div');
+
 		return;
 	}
 	
@@ -533,13 +646,13 @@ function paneXpis_click(e) {
 	var i = 0;
 	while (parentDiv.className != 'xpi') {
 		i++;
-		Cu.reportError('try i = ' + i);
+
 		parentDiv = parentDiv.parentNode;
 	}
 	
 	if (target.className == 'remove-from-history') {
 		var path = parentDiv.querySelector('[xfield=path]').getAttribute('content');//.replace(/\\(?!\\)/g,'\\\\');;
-		Cu.reportError('doing remove from history');
+
 		for (var i=0; i<historyJson.xpis.length; i++) {
 			if (historyJson.xpis[i][0] == path) {
 				historyJson.xpis.splice(i,1);
@@ -556,7 +669,7 @@ function paneXpis_click(e) {
 	}
 	if (target.className == 'open-in-folder') {
 		var path = parentDiv.querySelector('[xfield=path]').getAttribute('content');//.replace(/\\(?!\\)/g,'\\\\');;
-		Cu.reportError('doing open in folder');
+
 		try {
 			DownloadsCommon.showDownloadedFile(FileUtils.File(path));
 		} catch (ex) {
@@ -573,7 +686,7 @@ function paneXpis_click(e) {
 function paneRecs_click(e) {
 	var target = e.target;
 	if (target.id == 'folders') {
-		//Cu.reportError('clicked on main recs div');
+
 		return;
 	}
 	
@@ -581,14 +694,14 @@ function paneRecs_click(e) {
 	var i = 0;
 	while (parentDiv.className != 'folder') {
 		i++;
-		Cu.reportError('try i = ' + i);
+
 		parentDiv = parentDiv.parentNode;
 	}
 	var path = parentDiv.querySelector('[xfield=path]').getAttribute('content');//.replace(/\\(?!\\)/g,'\\\\');;
 	//target.ownerDocument.defaultView.alert('path = ' + path);
 	
 	if (target.className == 'remove-from-history') {
-		Cu.reportError('doing remove from history');
+
 		for (var i=0; i<historyJson.recs.length; i++) {
 			if (historyJson.recs[i][0] == path) {
 				historyJson.recs.splice(i,1);
@@ -604,7 +717,7 @@ function paneRecs_click(e) {
 		return;
 	}
 	if (target.className == 'open-in-folder') {
-		Cu.reportError('doing open in folder');
+
 		try {
 			DownloadsCommon.showDownloadedFile(FileUtils.File(path));
 		} catch (ex) {
@@ -619,16 +732,16 @@ function paneRecs_click(e) {
 function paneXpis_mouseover(e) {
 	var target = e.target;
 	/*
-	Cu.reportError('mouse target id = ' + target.id);
-	Cu.reportError('mouse target className = ' + target.className);
-	Cu.reportError('mouse target tagname = ' + target.tagName);
+
+
+
 	
-	Cu.reportError('mouse currentTarget id = ' + e.currentTarget.id);
-	Cu.reportError('mouse currentTarget className = ' + e.currentTarget.className);
-	Cu.reportError('mouse currentTarget tagname = ' + e.currentTarget.tagName);
+
+
+
 	*/
 	if (target.id == 'xpis') {
-		//Cu.reportError('moused over on on main xpis div');
+
 		return;
 	}
 	
@@ -636,11 +749,11 @@ function paneXpis_mouseover(e) {
 	var i = 0;
 	while (parentDiv.className != 'xpi') {
 		i++;
-		Cu.reportError('try i = ' + i);
+
 		parentDiv = parentDiv.parentNode;
 	}
 	var lastCompiledSpan = parentDiv.querySelector('[gettime]');
-	//Cu.reportError('last compiled time = ' + lastCompiledSpan.getAttribute('content'));
+
 	var lastCompiledTime = lastCompiledSpan.getAttribute('gettime');
 	lastCompiledSpan.setAttribute('content', new Date(parseInt(lastCompiledTime)).toRelativeTime());
 	
@@ -665,35 +778,35 @@ var installListener = {
 	onInstallEnded: function(aInstall, aAddon) {
 	   var str = [];
 	   //str.push('"' + aAddon.name + '" Install Ended!');
-	   jsWin.addMsg('<b>' + aAddon.name + '</b> Install Ended...');
+	   jsWin.addMsg('"' + aAddon.name + '" Install Ended...');
 	   if (aInstall.state != AddonManager.STATE_INSTALLED) {
 		   //str.push('aInstall.state: ' + aInstall.state)
 		   //jsWin.addMsg('aInstall.state: ' + aInstall.state);
-		   jsWin.addMsg('<font color="red">Addon Install Failed - Status Code: ' + aInstall.state + '</font>');
+		   jsWin.addMsg('<red>Addon Install Failed - Status Code: ' + aInstall.state);
 	   } else {
 		   //str.push('aInstall.state: Succesfully Installed')
 		   //jsWin.addMsg('aInstall.state: Succesfully Installed')
-		   jsWin.addMsg('<font color="green">Addon Succesfully Installed!</font>');
+		   jsWin.addMsg('<green>Addon Succesfully Installed!');
 	   }
 	   if (aAddon.appDisabled) {
 		   //str.push('appDisabled: ' + aAddon.appDisabled);
-		   jsWin.addMsg('<font color="red">Addon is disabled by application</font>');
+		   jsWin.addMsg('<red>Addon is disabled by application');
 	   }
 	   if (aAddon.userDisabled) {
 		   //str.push('userDisabled: ' + aAddon.userDisabled);
 		   //jsWin.addMsg('userDisabled: ' + aAddon.userDisabled);
-		   jsWin.addMsg('<font color="orange">Addon is currently disabled - go to addon manager to enable it</font>');
+		   jsWin.addMsg('<orange>Addon is currently disabled - go to addon manager to enable it');
 	   }
 	   if (aAddon.pendingOperations != AddonManager.PENDING_NONE) {
 		   //str.push('NEEDS RESTART: ' + aAddon.pendingOperations);
 		   //jsWin.addMsg('NEEDS RESTART: ' + aAddon.pendingOperations);
-		   jsWin.addMsg('<font color="orange">Needs to RESTART to complete install...</font>');
+		   jsWin.addMsg('Needs to RESTART to complete install...');
 	   }
 	   //alert(str.join('\n'));
 	   aInstall.removeListener(installListener);
 	},
 	onInstallStarted: function(aInstall) {
-		jsWin.addMsg('<b>' + aInstall.addon.name + '</b> Install Started...');
+		jsWin.addMsg('"' + aInstall.addon.name + '" Install Started...');
 	}
 };
 /*end - frontend event listeners*/
@@ -979,24 +1092,24 @@ Date.fromString = function(str) {
 
 
 function startup(aData, aReason) {
-	Cu.reportError('startup');
+
 	
 	selfPath = aData.resourceURI.spec; //has final slash at end so for use use as: "aData.resourceURI.spec + 'bootstrap.js'" this gets the bootstrap file //note the final slash being a backward "/" is very important
 	
 	windowListener.register();
 	registerAbout();
 	
-	Cu.reportError('startup finished');
+
 }
 
 function shutdown(aData, aReason) {
 	if (aReason == APP_SHUTDOWN) return;
-	Cu.reportError('shutdown start');
+
 	
 	unregisterAbout();
 	windowListener.unregister();
 	
-	Cu.reportError('shutdown finished');
+
 }
 
 function install() {}

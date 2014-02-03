@@ -300,15 +300,21 @@
 			var csses = {}; //holds css style sheets ids here dynamically added, used so we dont multi add or reuse same id, id needed cuz need to give each msg its unique id as it likely has may have unique height
 			function addMsg(msg, updateable) {
 				//adds new line to status pane
-				//if want to make it updateable put in a <!---->BLAH<!----> OR `~`BLAH`~`
+				//if want to make updateable put some text in updateable
 				var status = document.querySelector('#status');
 				var el = document.createElement('span');
-				if (updateable) {
-					msg = msg.replace('`~`','<!---->');
-					msg = msg.replace('`~`','<!---->');
+				var colorize = /<([^>]+)/.exec(msg);
+				if (colorize) {
+					el.style.color = colorize[1];
+					msg = msg.substr(colorize[0].length+1);
 				}
-				el.innerHTML = msg;			
-				el.setAttribute('style','transition:none');
+				msgNode = document.createTextNode(msg);
+				el.appendChild(msgNode);
+				if (updateable) {
+					var updateableMsg = document.createTextNode(updateable);
+					el.appendChild(updateableMsg);
+				}
+				el.style.transition = 'none';
 				status.appendChild(el);
 				
 				var itsH = el.offsetHeight;
@@ -320,12 +326,16 @@
 					newid--;
 				}
 				csses[newid] = 1;
-				css.innerHTML = '.a' + newid + ' {height:' + itsH + 'px;opacity:1;}';
+				var cssText = document.createTextNode('.a' + newid + ' {height:' + itsH + 'px;opacity:1;}');
+				css.appendChild(cssText);
 				css.setAttribute('id', 'c' + newid);
 				el.setAttribute('class', 'a' + newid);
 				document.body.appendChild(css);
 				
-				el.setAttribute('style','transition:none;height:0;opacity:0');
+				el.style.transition = 'none';
+				el.style.height = '0';
+				el.style.opacity = '0';
+				//el.setAttribute('style','transition:none;height:0;opacity:0');
 				
 				var trEnd = function(e) { 
 				//alert(e.propertyName)
@@ -340,19 +350,17 @@
 				}
 				el.addEventListener('transitionend', trEnd, false);
 				
-				setTimeout(function(){el.removeAttribute('style');},10);
-				
-				return;
-				
-				var statusWrap = document.querySelector('#statusWrap');
-				var h1 = document.querySelector('h1');
-				setTimeout(function(){h1.innerHTML = statusWrap.offsetHeight + ' | ' + status.offsetHeight ;},500);
+				setTimeout(function(){
+					el.style.transition = ''; //setting it to blank, this removes it from the inline style tag
+					el.style.height = '';
+					el.style.opacity = '';
+				},10);
 			}
 			function updateMsg(msg) {
 				//var status = document.querySelector('#status');
 				var lastMsg = document.querySelector('#status > span:last-of-type');
-				if (lastMsg.innerHTML.indexOf('<\!---->') > -1) {
-					lastMsg.innerHTML = lastMsg.innerHTML.replace(/<\!---->[\s\S]*?<\!---->/,'<\!---->' + msg + '<\!---->');
+				if (lastMsg.childNodes.length == 2) {
+					lastMsg.childNodes[1].data = msg;
 				}
 			}
 			
