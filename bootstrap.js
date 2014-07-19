@@ -7,6 +7,7 @@ Cu.import('resource://gre/modules/XPCOMUtils.jsm');
 Cu.import('resource://gre/modules/FileUtils.jsm');
 Cu.import('resource://gre/modules/AddonManager.jsm');
 Cu.import('resource://gre/modules/NetUtil.jsm');
+Cu.import('resource://gre/modules/devtools/Console.jsm');
 var cServ = {};
 XPCOMUtils.defineLazyGetter(cServ, 'zw', function () {
 	return Cc['@mozilla.org/zipwriter;1'].createInstance(Ci.nsIZipWriter);
@@ -42,8 +43,8 @@ function registerAbout() {
 		getURIFlags: function (aURI) 0
 	};
 	for (let[y, cls] in Iterator([AboutModule])) {
-
-
+	   //Cu.reportError('y: ' + y);
+	   //Cu.reportError('cls: ' + cls);
 		try {
 			var factory = {
 				_cls: cls,
@@ -63,7 +64,7 @@ function registerAbout() {
 			 Cm.unregisterFactory(factory._cls.prototype.classID, factory);
 			});
 		} catch (ex) {
-
+			Cu.reportError('failed to register module: ' + cls.name + '\nexception thrown: ' + ex);
 		}
 	}
 }
@@ -92,8 +93,8 @@ function listenPageLoad(event) {
     if (win.frameElement) {
       return;
     }
-
-
+	console.log(win.document.location);
+	console.info(/^about\:xpiler/i.test(win.document.location.href));
 	if (/^about\:xpiler/i.test(win.document.location.href)) {
 	
 		//start - allow only one instance of about:xpiler
@@ -142,7 +143,7 @@ function listenPageLoad(event) {
 			}
 		}
 		
-
+		Cu.reportError('foundXpilers len = ' + foundXpilers.length);
 		var foundXpilerI = -1;
 		if (foundXpilers.length == 1) {
 			//foundXpilers[0].aDOMWindow.alert('setting this to firstXpiler')
@@ -352,7 +353,7 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 			if (historyJson.recs[i][0] == path) {
 				historyJson.recs[i][1] = lastCompiled;
 				var querySelectorPatt = '#folders span[content="' + path.replace(/\\/g,'\\\\') + '"]';
-
+				Cu.reportError('looking for path where content = ' + querySelectorPatt)
 				var el = xDoc.querySelector(querySelectorPatt);
 				//el should always exist, because it found path in historyJson
 				el = el.parentNode;
@@ -409,10 +410,10 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 				historyJson.xpis[i][3] = compression;
 				historyJson.xpis[i][4] = compiledDirPath;
 				var querySelectorPatt = '#xpis span[content="' + path.replace(/\\/g,'\\\\') + '"]';
-
+				Cu.reportError('looking for path where content = ' + querySelectorPatt)
 				var el = xDoc.querySelector(querySelectorPatt);
 				el = el.parentNode;
-
+				Cu.reportError('parentNode innerHTML = ' + el.innerHTML);
 				el.setAttribute('style','order:' + order + ';');
 				paneXpis.scrollTop = 0;
 				var content = {};
@@ -426,7 +427,7 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 				for (var j=0; j<elChilds.length; j++) {
 					var xfield = elChilds[j].getAttribute('xfield');
 					if (xfield && content[xfield]) {
-
+						Cu.reportError('set xfield of ' + xfield + ' TO ' + content[xfield]);
 						elChilds[j].setAttribute('content', content[xfield]);
 						if (xfield == 'lastCompiled') {
 							elChilds[j].setAttribute('gettime', lastCompiled);
@@ -511,8 +512,8 @@ function readHistoryFile(){
 	var historyFile = FileUtils.getFile('ProfD', ['XPICompiler_history.txt']);
 	//jsWin.addMsg('Reading History File');
 	readFile(historyFile, function (dataReadFromFile, status) {
-
-
+		Cu.reportError('read status = ' + status);
+		Cu.reportError('read status isSucC = ' + Components.isSuccessCode(status));
 		if (!Components.isSuccessCode(status)) {
 			//jsWin.addMsg('No history file found so creating blank object');
 			historyJson = {recs:[],xpis:[]};
@@ -541,7 +542,7 @@ var historyJson = {recs:[],xpis:[]};
 function btnBrowse_click(e,startDir) {
 	cServ.fp.init(xWin, 'Select Directory to Compile', Ci.nsIFilePicker.modeGetFolder);
 	if (startDir) {
-
+		Cu.reportError('startdir = ' + startDir);
 		try {
 			var startDirNsiFile = FileUtils.File(startDir);
 		} catch (ex) {
@@ -592,7 +593,7 @@ function btnCompile_click(e, overridePath) {
 		
 	var xpi = FileUtils.File(dir.path + '\\' + dir.leafName + '.xpi');
 	try {
-
+		console.log('opening');
 		cServ.zw.open(xpi, pr.PR_WRONLY | pr.PR_CREATE_FILE | pr.PR_TRUNCATE); //xpi file is created if not there, if it is there it is truncated/deleted
 		jsWin.addMsg('XPI File Created - "' + xpi.leafName + '"');
 
@@ -607,12 +608,12 @@ function btnCompile_click(e, overridePath) {
 				//custom check for my purpose, because i put the xpi within the dirs that are to be traversed
 				if (i == 0 && entry.leafName == xpi.leafName) {
 					//testing i==0 becuase i know before hand that i put the xpi file in dirArr[0] which is parent dir
-
+					//Cu.reportError('skipping entry as this is the xpi itself: "' + xpi.path + '" leafName:"' + xpi.leafName + '"');
 					continue;
 				}
 				//end custom check
 				if (entry.isHidden()) {
-
+					console.info('not adding entry as its hidden: ', entry.path, 'was it directory?', entry.isDirectory(), entry);
 					continue; //if we continue here, and if its a directory, then it will not be pushed into dirArr so it's sub contents will never get added
 				}
 				if (entry.isDirectory()) {
@@ -655,7 +656,7 @@ function btnCompile_click(e, overridePath) {
 function paneXpis_click(e) {
 	var target = e.target;
 	if (target.id == 'xpis') {
-
+		Cu.reportError('clicked on main xpis div');
 		return;
 	}
 	
@@ -663,13 +664,13 @@ function paneXpis_click(e) {
 	var i = 0;
 	while (parentDiv.className != 'xpi') {
 		i++;
-
+		Cu.reportError('try i = ' + i);
 		parentDiv = parentDiv.parentNode;
 	}
 	
 	if (target.className == 'remove-from-history') {
 		var path = parentDiv.querySelector('[xfield=path]').getAttribute('content');//.replace(/\\(?!\\)/g,'\\\\');;
-
+		Cu.reportError('doing remove from history');
 		for (var i=0; i<historyJson.xpis.length; i++) {
 			if (historyJson.xpis[i][0] == path) {
 				historyJson.xpis.splice(i,1);
@@ -686,7 +687,7 @@ function paneXpis_click(e) {
 	}
 	if (target.className == 'open-in-folder') {
 		var path = parentDiv.querySelector('[xfield=path]').getAttribute('content');//.replace(/\\(?!\\)/g,'\\\\');;
-
+		Cu.reportError('doing open in folder');
 		try {
 			showDownloadedFile(FileUtils.File(path));
 		} catch (ex) {
@@ -703,7 +704,7 @@ function paneXpis_click(e) {
 function paneRecs_click(e) {
 	var target = e.target;
 	if (target.id == 'folders') {
-
+		//Cu.reportError('clicked on main recs div');
 		return;
 	}
 	
@@ -711,14 +712,14 @@ function paneRecs_click(e) {
 	var i = 0;
 	while (parentDiv.className != 'folder') {
 		i++;
-
+		Cu.reportError('try i = ' + i);
 		parentDiv = parentDiv.parentNode;
 	}
 	var path = parentDiv.querySelector('[xfield=path]').getAttribute('content');//.replace(/\\(?!\\)/g,'\\\\');;
 	//target.ownerDocument.defaultView.alert('path = ' + path);
 	
 	if (target.className == 'remove-from-history') {
-
+		Cu.reportError('doing remove from history');
 		for (var i=0; i<historyJson.recs.length; i++) {
 			if (historyJson.recs[i][0] == path) {
 				historyJson.recs.splice(i,1);
@@ -734,7 +735,7 @@ function paneRecs_click(e) {
 		return;
 	}
 	if (target.className == 'open-in-folder') {
-
+		Cu.reportError('doing open in folder');
 		try {
 			showDownloadedFile(FileUtils.File(path));
 		} catch (ex) {
@@ -749,16 +750,16 @@ function paneRecs_click(e) {
 function paneXpis_mouseover(e) {
 	var target = e.target;
 	/*
-
-
-
+	Cu.reportError('mouse target id = ' + target.id);
+	Cu.reportError('mouse target className = ' + target.className);
+	Cu.reportError('mouse target tagname = ' + target.tagName);
 	
-
-
-
+	Cu.reportError('mouse currentTarget id = ' + e.currentTarget.id);
+	Cu.reportError('mouse currentTarget className = ' + e.currentTarget.className);
+	Cu.reportError('mouse currentTarget tagname = ' + e.currentTarget.tagName);
 	*/
 	if (target.id == 'xpis') {
-
+		//Cu.reportError('moused over on on main xpis div');
 		return;
 	}
 	
@@ -766,11 +767,11 @@ function paneXpis_mouseover(e) {
 	var i = 0;
 	while (parentDiv.className != 'xpi') {
 		i++;
-
+		Cu.reportError('try i = ' + i);
 		parentDiv = parentDiv.parentNode;
 	}
 	var lastCompiledSpan = parentDiv.querySelector('[gettime]');
-
+	//Cu.reportError('last compiled time = ' + lastCompiledSpan.getAttribute('content'));
 	var lastCompiledTime = lastCompiledSpan.getAttribute('gettime');
 	lastCompiledSpan.setAttribute('content', new Date(parseInt(lastCompiledTime)).toRelativeTime());
 	
@@ -1131,7 +1132,7 @@ Date.fromString = function(str) {
 
 
 function startup(aData, aReason) {
-
+	console.log('startup');
 	
 	selfPath = aData.resourceURI.spec; //has final slash at end so for use use as: "aData.resourceURI.spec + 'bootstrap.js'" this gets the bootstrap file //note the final slash being a backward "/" is very important
 	
@@ -1140,17 +1141,17 @@ function startup(aData, aReason) {
 	
 	//note: if you had any about:xpiler tabs open, you must reload them for it to use the updated stuff
 	
-
+	console.log('startup finished');
 }
 
 function shutdown(aData, aReason) {
 	if (aReason == APP_SHUTDOWN) return;
-
+	Cu.reportError('shutdown start');
 	
 	unregisterAbout();
 	windowListener.unregister();
 	
-
+	Cu.reportError('shutdown finished');
 }
 
 function install() {}
@@ -1158,14 +1159,14 @@ function install() {}
 function uninstall(aData, aReason) {
 	if (aReason == ADDON_UNINSTALL) { //have to put this here because uninstall fires on upgrade/downgrade too
 		//this is real uninstall
-
-
+		console.log('real uninstall');
+		console.log('delete history file');
 		var historyFile = FileUtils.getFile('ProfD', ['XPICompiler_history.txt']);
 		if (historyFile.exists()) {
 			historyFile.remove(false);
-
+			console.log('history file deleted');
 		} else {
-
+			console.log('history file DNE');
 		}
 	}
 }
