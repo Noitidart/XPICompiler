@@ -344,6 +344,7 @@
 						el.removeAttribute('class');
 						document.body.removeChild(css);
 						delete csses[newid];
+						status.scrollTop = status.scrollHeight;
 					} else {
 						//alert('not yet');
 					}
@@ -425,6 +426,7 @@
 		<h1 id="logo" style="flex-shrink:0;">
 			<span>XPICOMPILER</span>
 		</h1>
+		<div style="display:none;"> <!-- hiding the options block as none of it is implemented and userbase didnt exist to warrant it -->
 		<h2 style="flex-shrink:0;"><span>OPTIONS</span><span style="font-size:.5em;vertical-align:middle;padding-left:10px;color:red;">NOT IMPLEMENTED</span></h2>
 		<form id="options" style="flex-shrink:0;">
 			<span>
@@ -480,6 +482,7 @@
 				</select>
 			</span>
 		</form>
+		</div> <!-- hiding the options block as none of it is implemented -->
 		<h2 style="flex-shrink:0;"><span>BROWSE</span></h2>
 		<div id="browse" style="flex-shrink:0;">
 			<div id="browseac" style="display:none;"></div><!--placement is important here, it should be after the text field so shift+tab takes it back into the input field-->
@@ -488,8 +491,7 @@
 			<span class="button compile" title="Compile"></span>
 		</div>
 		<h3 style="flex-shrink:0;"><span class="trash"></span><span>Recent Folders</span></h3>
-		<div id="folders" style="overflow:auto; margin-bottom: 1%;">
-			<div class="nohistory">
+		<div id="folders" style="overflow:auto; margin-bottom: 1%; flex-shrink: 0;"><div class="nohistory">
 				<span>No Recently Browsed Directories</span>
 			</div><!--
 			<div class="folder">
@@ -501,8 +503,7 @@
 	</div>
 	<div class="main-pane">
 		<h2 style="flex-shrink:0;"><span class="trash"></span>HISTORY</h2>
-		<div id="xpis" style="overflow:auto; margin-bottom: 1%;">
-			<div class="nohistory">
+		<div id="xpis" style="overflow:auto; margin-bottom: 1%; flex-shrink: 0;"><div class="nohistory">
 				<span>No Recently Compiled Directories</span>
 			</div><!--
 			<div class="xpi">

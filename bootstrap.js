@@ -7,7 +7,7 @@ Cu.import('resource://gre/modules/XPCOMUtils.jsm');
 Cu.import('resource://gre/modules/FileUtils.jsm');
 Cu.import('resource://gre/modules/AddonManager.jsm');
 Cu.import('resource://gre/modules/NetUtil.jsm');
-Cu.import('resource:///modules/DownloadsCommon.jsm')
+Cu.import('resource://gre/modules/devtools/Console.jsm');
 var cServ = {};
 XPCOMUtils.defineLazyGetter(cServ, 'zw', function () {
 	return Cc['@mozilla.org/zipwriter;1'].createInstance(Ci.nsIZipWriter);
@@ -93,8 +93,9 @@ function listenPageLoad(event) {
     if (win.frameElement) {
       return;
     }
-	
-	if (win.document.location == 'about:xpiler') {
+	console.log(win.document.location);
+	console.info(/^about\:xpiler/i.test(win.document.location.href));
+	if (/^about\:xpiler/i.test(win.document.location.href)) {
 	
 		//start - allow only one instance of about:xpiler
 		var foundXpilers = []; //holds xpilers as we find them as we loop thru all win and tabs
@@ -108,7 +109,7 @@ function listenPageLoad(event) {
 					var numTabs = aDOMWindow.gBrowser.tabContainer.childNodes.length;
 					for (var i=0; i<numTabs; i++) {
 						var tabBrowser = aDOMWindow.gBrowser.tabContainer.childNodes[i].linkedBrowser;
-						if (tabBrowser.contentWindow.location == 'about:xpiler') {
+						if (/^about\:xpiler/i.test(tabBrowser.contentWindow.location.href)) {
 							aDOMWindow.focus();
 							aDOMWindow.gBrowser.selectedTab = aDOMWindow.gBrowser.tabContainer.childNodes[i];
 							//aDOMWindow.window.alert('about:xpiler found here, just focused')
@@ -219,10 +220,10 @@ function listenPageLoad(event) {
 function trashRecs() {
 	if (xWin.confirm('This will remove all folder history from "Recent Folders" list. Are you sure you want to do this?')) {
 		var childNodes = paneRecs.childNodes;
-		childNodes[0].style.display = ''; //the nothing there container
-		for (var i=1; i<childNodes.length; i++) {
+		for (var i=childNodes.length-1; i>0; i--) {
 			paneRecs.removeChild(childNodes[i]);
 		}
+		childNodes[0].style.display = ''; //the nothing there container
 		historyJson.recs = [];
 		updateHistoryFile();
 	}
@@ -230,20 +231,21 @@ function trashRecs() {
 
 function trashXpis() {
 	if (xWin.confirm('This will remove all XPI history from "History" list. Are you sure you want to do this?')) {
-		var childNodes = paneRecs.childNodes;
-		childNodes[0].style.display = ''; //the nothing there container
-		for (var i=1; i<childNodes.length; i++) {
-			paneRecs.removeChild(childNodes[i]);
+		var childNodes = paneXpis.childNodes;
+		for (var i=childNodes.length-1; i>0; i--) {
+			paneXpis.removeChild(childNodes[i]);
 		}
+		childNodes[0].style.display = ''; //the nothing there container
 		historyJson.xpis = [];
 		updateHistoryFile();
 	}
 }
 
 function trashStatus() {
-	var childNodes = xDoc.querySelector('#status').childNodes;
-	for (var i=0; i<childNodes.length; i++) {
-		paneRecs.removeChild(childNodes[i]);
+	var statusPane = xDoc.querySelector('#status')
+	var childNodes = statusPane.childNodes;
+	for (var i=childNodes.length-1; i>=0; i--) {
+		statusPane.removeChild(childNodes[i]);
 	}
 }
 
@@ -424,10 +426,12 @@ function updateHistory(path,lastCompiled,size,compression,compiledDirPath) {
 				var elChilds = el.childNodes;
 				for (var j=0; j<elChilds.length; j++) {
 					var xfield = elChilds[j].getAttribute('xfield');
-					Cu.reportError('set xfield of ' + xfield + ' TO ' + content[xfield]);
-					elChilds[j].setAttribute('content', content[xfield]);
-					if (xfield == 'lastCompiled') {
-						elChilds[j].setAttribute('gettime', lastCompiled);
+					if (xfield && content[xfield]) {
+						Cu.reportError('set xfield of ' + xfield + ' TO ' + content[xfield]);
+						elChilds[j].setAttribute('content', content[xfield]);
+						if (xfield == 'lastCompiled') {
+							elChilds[j].setAttribute('gettime', lastCompiled);
+						}
 					}
 				}
 
@@ -582,43 +586,57 @@ function btnCompile_click(e, overridePath) {
 		return;
 	}
 	if (!dir.exists()) {
-		jsWin.addMsg('<red>Directory does not exist - ' + dir.path)
+		jsWin.addMsg('<red>Directory does not exist: ' + dir.path)
 		xWin.alert('Directory does not exist!');
 		return;
 	}
 		
 	var xpi = FileUtils.File(dir.path + '\\' + dir.leafName + '.xpi');
-	cServ.zw.open(xpi, pr.PR_WRONLY | pr.PR_CREATE_FILE | pr.PR_TRUNCATE); //xpi file is created if not there, if it is there it is truncated/deleted
-	jsWin.addMsg('XPI File Created - "' + xpi.leafName + '"');
+	try {
+		console.log('opening');
+		cServ.zw.open(xpi, pr.PR_WRONLY | pr.PR_CREATE_FILE | pr.PR_TRUNCATE); //xpi file is created if not there, if it is there it is truncated/deleted
+		jsWin.addMsg('XPI File Created - "' + xpi.leafName + '"');
 
-	//recursviely add all contents of dir
-	jsWin.addMsg('Zipping Contents - ', 'Initiating...');
-	
-	var dirArr = [dir]; //adds dirs to this as it finds it
-	for (var i = 0; i < dirArr.length; i++) {
-		var dirEntries = dirArr[i].directoryEntries;
-		while (dirEntries.hasMoreElements()) {
-			var entry = dirEntries.getNext().QueryInterface(Ci.nsIFile);
-			//custom check for my purpose, because i put the xpi within the dirs that are to be traversed
-			if (i == 0 && entry.leafName == xpi.leafName) {
-				//testing i==0 becuase i know before hand that i put the xpi file in dirArr[0] which is parent dir
-				//Cu.reportError('skipping entry as this is the xpi itself: "' + xpi.path + '" leafName:"' + xpi.leafName + '"');
-				continue;
+		//recursviely add all contents of dir
+		jsWin.addMsg('Zipping Contents - ', 'Initiating...');
+		
+		var dirArr = [dir]; //adds dirs to this as it finds it
+		for (var i = 0; i < dirArr.length; i++) {
+			var dirEntries = dirArr[i].directoryEntries;
+			while (dirEntries.hasMoreElements()) {
+				var entry = dirEntries.getNext().QueryInterface(Ci.nsIFile);
+				//custom check for my purpose, because i put the xpi within the dirs that are to be traversed
+				if (i == 0 && entry.leafName == xpi.leafName) {
+					//testing i==0 becuase i know before hand that i put the xpi file in dirArr[0] which is parent dir
+					//Cu.reportError('skipping entry as this is the xpi itself: "' + xpi.path + '" leafName:"' + xpi.leafName + '"');
+					continue;
+				}
+				//end custom check
+				if (entry.isHidden()) {
+					console.info('not adding entry as its hidden: ', entry.path, 'was it directory?', entry.isDirectory(), entry);
+					continue; //if we continue here, and if its a directory, then it will not be pushed into dirArr so it's sub contents will never get added
+				}
+				if (entry.isDirectory()) {
+					dirArr.push(entry);
+				}
+				var relPath = entry.path.replace(dirArr[0].path + '\\', '');
+				var saveInZipAs = relPath.replace(/\\/g,'/'); //because if use '/' it causes problems in the zip, must use '\'
+				jsWin.updateMsg(saveInZipAs);
+				cServ.zw.addEntryFile(saveInZipAs, Ci.nsIZipWriter.COMPRESSION_NONE, entry, false);
 			}
-
-			//end custom check
-			if (entry.isDirectory()) {
-				dirArr.push(entry);
-			}
-			var relPath = entry.path.replace(dirArr[0].path + '\\', '');
-			var saveInZipAs = relPath.replace(/\\/g,'/'); //because if use '/' it causes problems in the zip, must use '\'
-			jsWin.updateMsg(saveInZipAs);
-			cServ.zw.addEntryFile(saveInZipAs, Ci.nsIZipWriter.COMPRESSION_NONE, entry, false);
+		}
+	  //end recursive add
+	} catch(ex) {
+		console.exception(ex);
+		jsWin.addMsg('<red>Error occured during compiling: ' + uneval(ex));
+	} finally {
+		try {
+			cServ.zw.close()
+		} catch (ex) {
+			console.exception(ex);
+			jsWin.addMsg('<red>Error on closing compile: ' + ex);
 		}
 	}
-  //end recursive add
-  
-	cServ.zw.close()
 	jsWin.updateMsg('Done');
 	jsWin.addMsg('Zipping Complete');
 	updateHistory(xpi.path, new Date().getTime(), xpi.fileSize, 0, dir.path);
@@ -671,7 +689,7 @@ function paneXpis_click(e) {
 		var path = parentDiv.querySelector('[xfield=path]').getAttribute('content');//.replace(/\\(?!\\)/g,'\\\\');;
 		Cu.reportError('doing open in folder');
 		try {
-			DownloadsCommon.showDownloadedFile(FileUtils.File(path));
+			showDownloadedFile(FileUtils.File(path));
 		} catch (ex) {
 			jsWin.addMsg(ex);
 		}
@@ -719,7 +737,7 @@ function paneRecs_click(e) {
 	if (target.className == 'open-in-folder') {
 		Cu.reportError('doing open in folder');
 		try {
-			DownloadsCommon.showDownloadedFile(FileUtils.File(path));
+			showDownloadedFile(FileUtils.File(path));
 		} catch (ex) {
 			jsWin.addMsg(ex);
 		}
@@ -944,7 +962,29 @@ function format_bytes(filesize) {
  		};
 	};
   return filesize;
-};/*end - library funcs*/
+}
+
+function showDownloadedFile(aFile) {
+//http://mxr.mozilla.org/mozilla-release/source/browser/components/downloads/src/DownloadsCommon.jsm#533
+    if (!(aFile instanceof Ci.nsIFile))
+      throw new Error("aFile must be a nsIFile object");
+	  
+	if (!aFile.exists())
+		jsWin.addMsg('<red>Cannot open as it does not exist');
+		
+	try {
+		if (aFile.isDirectory()) {
+			aFile.launch();
+		} else {
+			aFile.reveal();
+		}
+	} catch (ex) {
+		jsWin.addMsg('Failed to show due to exception: "' + ex + '"');
+	}
+}
+
+
+/*end - library funcs*/
 
 /*start - relative date extension*/
 /**
@@ -1092,14 +1132,16 @@ Date.fromString = function(str) {
 
 
 function startup(aData, aReason) {
-	Cu.reportError('startup');
+	console.log('startup');
 	
 	selfPath = aData.resourceURI.spec; //has final slash at end so for use use as: "aData.resourceURI.spec + 'bootstrap.js'" this gets the bootstrap file //note the final slash being a backward "/" is very important
 	
 	windowListener.register();
 	registerAbout();
 	
-	Cu.reportError('startup finished');
+	//note: if you had any about:xpiler tabs open, you must reload them for it to use the updated stuff
+	
+	console.log('startup finished');
 }
 
 function shutdown(aData, aReason) {
@@ -1114,4 +1156,17 @@ function shutdown(aData, aReason) {
 
 function install() {}
 
-function uninstall() {}
+function uninstall(aData, aReason) {
+	if (aReason == ADDON_UNINSTALL) { //have to put this here because uninstall fires on upgrade/downgrade too
+		//this is real uninstall
+		console.log('real uninstall');
+		console.log('delete history file');
+		var historyFile = FileUtils.getFile('ProfD', ['XPICompiler_history.txt']);
+		if (historyFile.exists()) {
+			historyFile.remove(false);
+			console.log('history file deleted');
+		} else {
+			console.log('history file DNE');
+		}
+	}
+}
