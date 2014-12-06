@@ -8,6 +8,8 @@ Cu.import('resource://gre/modules/FileUtils.jsm');
 Cu.import('resource://gre/modules/AddonManager.jsm');
 Cu.import('resource://gre/modules/NetUtil.jsm');
 Cu.import('resource://gre/modules/devtools/Console.jsm');
+Cu.import('resource://gre/modules/osfile.jsm');
+
 var cServ = {};
 XPCOMUtils.defineLazyGetter(cServ, 'zw', function () {
 	return Cc['@mozilla.org/zipwriter;1'].createInstance(Ci.nsIZipWriter);
@@ -591,7 +593,7 @@ function btnCompile_click(e, overridePath) {
 		return;
 	}
 		
-	var xpi = FileUtils.File(dir.path + '\\' + dir.leafName + '.xpi');
+	var xpi = FileUtils.File(OS.Path.join(dir.path, dir.leafName) + '.xpi');
 	try {
 		console.log('opening');
 		cServ.zw.open(xpi, pr.PR_WRONLY | pr.PR_CREATE_FILE | pr.PR_TRUNCATE); //xpi file is created if not there, if it is there it is truncated/deleted
