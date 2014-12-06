@@ -621,7 +621,7 @@ function btnCompile_click(e, overridePath) {
 				if (entry.isDirectory()) {
 					dirArr.push(entry);
 				}
-				var relPath = entry.path.replace(dirArr[0].path + '\\', '');
+				var relPath = entry.path.replace(OS.Path.join(dirArr[0].path, ''), '');
 				var saveInZipAs = relPath.replace(/\\/g,'/'); //because if use '/' it causes problems in the zip, must use '\'
 				jsWin.updateMsg(saveInZipAs);
 				cServ.zw.addEntryFile(saveInZipAs, Ci.nsIZipWriter.COMPRESSION_NONE, entry, false);
