@@ -603,6 +603,8 @@ function btnCompile_click(e, overridePath) {
 		jsWin.addMsg('Zipping Contents - ', 'Initiating...');
 		
 		var dirArr = [dir]; //adds dirs to this as it finds it
+		var dirArr0Rep = OS.Path.join(dirArr[0].path, '_');
+		dirArr0Rep = dirArr0Rep.substring(0, dirArr0Rep.length-1);
 		for (var i = 0; i < dirArr.length; i++) {
 			var dirEntries = dirArr[i].directoryEntries;
 			while (dirEntries.hasMoreElements()) {
@@ -621,8 +623,10 @@ function btnCompile_click(e, overridePath) {
 				if (entry.isDirectory()) {
 					dirArr.push(entry);
 				}
-				var relPath = entry.path.replace(OS.Path.join(dirArr[0].path, ''), '');
+				var relPath = entry.path.replace(dirArr0Rep, '');
+				//jsWin.addMsg(relPath);
 				var saveInZipAs = relPath.replace(/\\/g,'/'); //because if use '/' it causes problems in the zip, must use '\'
+				//jsWin.addMsg(saveInZipAs);
 				jsWin.updateMsg(saveInZipAs);
 				cServ.zw.addEntryFile(saveInZipAs, Ci.nsIZipWriter.COMPRESSION_NONE, entry, false);
 			}
